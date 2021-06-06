@@ -722,156 +722,6 @@ all_feat_zscores = [univariate_zscores, abs_bivariate_feats];
 incomplete_channels = find(isnan(sum(all_feat_zscores')));
 single_bivariate_feat(incomplete_channels) = []; 
 
-
-%% combine univariate and bivariate
-%all_feat_zscores = [univariate_zscores, all_bivariate_feats];
-all_feat_zscores(isinf(all_feat_zscores)) = 0;
-incomplete_channels = find(isnan(sum(all_feat_zscores')));
-all_feat_zscores2 = all_feat_zscores;
-all_feat_zscores2(incomplete_channels,:) = [];
-EIZ = [zeros(1772,1);[spike_ind - spike_ind.*soz_ch]];
-resect_ch_all = [zeros(1772,1);resected_ch];
-
-% 1: patient, 2: abnormal, 3: EIZ, 4: SOZ, 5: resect, 6:outcome
-all_possible_labels = [all_pts,[EIZ+[zeros(1772,1);soz_ch]],EIZ,[zeros(1772,1);soz_ch],resect_ch_all,[ones(1772,1);HUP_outcome_all]];
-multi_class_all = [~all_possible_labels(:,2)+2.*all_possible_labels(:,3)+3.*all_possible_labels(:,4)];
-all_possible_labels(incomplete_channels,:) = [];
-
-multi_class = [~all_possible_labels(:,2)+2.*all_possible_labels(:,3)+3.*all_possible_labels(:,4)];
-
-% get only non EIZ normal versus SOZ (in good outcome patients)
-non_normal_non_soz = [zeros(1772,1);[soz_ch==0]];
-non_normal_non_soz(incomplete_channels) = [];
-eliminate_channels = find(all_possible_labels(:,3)==1);%find(non_normal_non_soz==1);
-all_feat_zscores3 = all_feat_zscores2;
-all_feat_zscores3(eliminate_channels,:) = [];
-new_labels = all_possible_labels;
-new_labels(eliminate_channels,:) = [];
-
-all_feats = all_feat_zscores2;
-all_labels = new_labels(:,4);
-all_pred_1 = zeros(size(all_labels)); 
-all_pred_2 = zeros(size(all_labels)); 
-all_pred_3 = zeros(size(all_labels)); 
-
-[part] = make_xval_partition(length(all_labels), 10);
-for p = 1:10
-    p
-    X_train = all_feats(find(part~=p),:);
-    Y_train = all_labels(find(part~=p));
-    X_test = all_feats(find(part==p),:);
-    Y_test = all_labels(find(part==p));
-    
-    Mdl1 = TreeBagger(100,X_train(:,1:10),Y_train,'Method',...
-    'classification','PredictorSelection','curvature','OOBPredictorImportance','on');
-
-    Mdl2 = TreeBagger(100,X_train(:,11:20),Y_train,'Method',...
-    'classification','PredictorSelection','curvature','OOBPredictorImportance','on');
-
-    Mdl3 = TreeBagger(100,X_train,Y_train,'Method',...
-    'classification','PredictorSelection','curvature','OOBPredictorImportance','on');
-
-    [Yfit,pihat1] = predict(Mdl1,X_test(:,1:10));
-    [Yfit,pihat2] = predict(Mdl2,X_test(:,11:20));
-    [Yfit,pihat3] = predict(Mdl3,X_test);
-    
-    [~, Y_pred] = max(pihat1,[],2);
-    all_pred_1(find(part==p)) = pihat1(:,2);
-    all_pred_2(find(part==p)) = pihat2(:,2);
-    all_pred_3(find(part==p)) = pihat3(:,2);
-    
-    xfold_acc(p) = sum(Y_pred==Y_test)./length(Y_test);
-    
-    Y_pred = round(pihat1(:,2));
-    
-    
-end
-
-    [X1,Y1,T,AUC1] = perfcurve(all_labels,all_pred_1,1)  
-
-    [X2,Y2,T,AUC2] = perfcurve(all_labels,all_pred_2,1)
-
-    [X3,Y3,T,AUC3] = perfcurve(all_labels,all_pred_3,1)
-   
-
-% random forest feature importance
-imp = Mdl3.OOBPermutedPredictorDeltaError;
-
-figure(1);clf;
-bar(imp);
-title('Curvature Test');
-ylabel('Predictor importance estimates');
-xticks([1:20])
-
-figure(2);clf;
-hold on
-plot(X1,Y1,'LineWidth',2)%4
-plot(X2,Y2,'LineWidth',2)%7
-plot(X3,Y3,'LineWidth',2)%10
-legend(sprintf('Univariate  - AUC: %f2',AUC1),sprintf('Bivariate  - AUC: %f2',AUC2),sprintf('All - AUC: %f2',AUC3),'Location','SouthEast')%86/85/91
-xlabel('False positive rate')
-ylabel('True positive rate')
-title('All abnormal vs. normal channel classification')
-
-%% need to map back onto all channels and render
-all_pred = ones(5203,1);
-all_pred(incomplete_channels) = 0;
-all_pred(all_pred==1) = 1-xfold_pred3;
-
-%% render abnormalities
-soz_ch_all = [zeros(1772,1);soz_ch];
-this_pt = 111; %114 res - 45/50 EIZ - 52/64, non-inv - 20,30 % 120 - res - 2., EIZ - 23./64, non-inv - 33/50.
-this_pt_abn = all_pred_3(find(all_pts==this_pt));
-this_pt_soz = multi_class_all(find(all_pts==this_pt));
-this_pt_res = resect_ch_all(find(all_pts==this_pt));
-this_pt_coords = all_coords(find(all_pts==this_pt),:);
-this_pt_eeg = all_wake_data(:,find(all_pts==this_pt));
-%this_pt_delta_coh_abn(isnan(this_pt_delta_coh_abn)) = 0;
-
-this_pt_zscores = all_feat_zscores(find(all_pts==this_pt),:);
-
-figure(1);clf;
-hold on
-for i = 1:10
-    plot([1:12000],[this_pt_eeg(:,4*i)+i*175],'k-')
-end
-hold off
-
-figure(1);clf;
-imagesc(all_feat_zscores(find(all_pts==this_pt),:))
-colorbar
-caxis([0,5])
-
-figure(2);clf;
-subplot(1,3,1)
-imagesc(this_pt_zscores(2,:)')
-caxis([0,4])
-colorbar
-subplot(1,3,2)
-imagesc(this_pt_zscores(23,:)')
-caxis([0,4])
-colorbar
-subplot(1,3,3)
-imagesc(this_pt_zscores(50,:)')
-caxis([0,4])
-colorbar
-
-figure(3);
-subplot(3,1,1)
-plot(this_pt_eeg(:,2))
-subplot(3,1,2)
-plot(this_pt_eeg(:,23))
-subplot(3,1,3)
-plot(this_pt_eeg(:,50))
-
-
-figure(4);clf;
-final_elec_matrix = [this_pt_coords,this_pt_abn,ones(size(this_pt_coords,1),1)];
-%final_elec_matrix = final_elec_matrix([2,23,50],:)
-dlmwrite('render_elecs.node',final_elec_matrix,'delimiter',' ','precision',5)
-BrainNet_MapCfg('BrainMesh_ICBM152_smoothed.nv','render_elecs.node','abnormality_render.mat')
-delete render_elecs.node
-
 %% 
 single_bivariate_feat_2 = single_bivariate_feat;
 new_roi_2 = new_roi;
@@ -1089,10 +939,347 @@ ylim([0 10])
 
 [p1 p2 p3 p4 p5 p6 p7 p8]
 
+%% combine univariate and bivariate
+%all_feat_zscores = [univariate_zscores, all_bivariate_feats];
+all_feat_zscores(isinf(all_feat_zscores)) = 0;
+incomplete_channels = find(isnan(sum(all_feat_zscores')));
+all_feat_zscores2 = all_feat_zscores;
+all_feat_zscores2(incomplete_channels,:) = [];
+EIZ = [zeros(1772,1);[spike_ind - spike_ind.*soz_ch]];
+resect_ch_all = [zeros(1772,1);resected_ch];
+
+% 1: patient, 2: abnormal, 3: EIZ, 4: SOZ, 5: resect, 6:outcome
+all_possible_labels = [all_pts,[EIZ+[zeros(1772,1);soz_ch]],EIZ,[zeros(1772,1);soz_ch],resect_ch_all,[ones(1772,1);HUP_outcome_all]];
+multi_class_all = [~all_possible_labels(:,2)+2.*all_possible_labels(:,3)+3.*all_possible_labels(:,4)];
+all_possible_labels(incomplete_channels,:) = [];
+
+multi_class = [~all_possible_labels(:,2)+2.*all_possible_labels(:,3)+3.*all_possible_labels(:,4)];
+
+% get only non EIZ normal versus SOZ (in good outcome patients)
+non_normal_non_soz = [zeros(1772,1);[soz_ch==0]];
+non_normal_non_soz(incomplete_channels) = [];
+eliminate_channels = find(all_possible_labels(:,3)==1);%find(non_normal_non_soz==1);
+all_feat_zscores3 = all_feat_zscores2;
+all_feat_zscores3(eliminate_channels,:) = [];
+new_labels = all_possible_labels;
+new_labels(eliminate_channels,:) = [];
+
+all_feats = all_feat_zscores2;
+all_labels = new_labels(:,4);
+all_pred_1 = zeros(size(all_labels)); 
+all_pred_2 = zeros(size(all_labels)); 
+all_pred_3 = zeros(size(all_labels)); 
+
+[part] = make_xval_partition(length(all_labels), 10);
+for p = 1:10
+    p
+    X_train = all_feats(find(part~=p),:);
+    Y_train = all_labels(find(part~=p));
+    X_test = all_feats(find(part==p),:);
+    Y_test = all_labels(find(part==p));
+    
+    Mdl1 = TreeBagger(100,X_train(:,1:10),Y_train,'Method',...
+    'classification','PredictorSelection','curvature','OOBPredictorImportance','on');
+
+    Mdl2 = TreeBagger(100,X_train(:,11:20),Y_train,'Method',...
+    'classification','PredictorSelection','curvature','OOBPredictorImportance','on');
+
+    Mdl3 = TreeBagger(100,X_train,Y_train,'Method',...
+    'classification','PredictorSelection','curvature','OOBPredictorImportance','on');
+
+    [Yfit,pihat1] = predict(Mdl1,X_test(:,1:10));
+    [Yfit,pihat2] = predict(Mdl2,X_test(:,11:20));
+    [Yfit,pihat3] = predict(Mdl3,X_test);
+    
+    [~, Y_pred] = max(pihat1,[],2);
+    all_pred_1(find(part==p)) = pihat1(:,2);
+    all_pred_2(find(part==p)) = pihat2(:,2);
+    all_pred_3(find(part==p)) = pihat3(:,2);
+    
+    xfold_acc(p) = sum(Y_pred==Y_test)./length(Y_test);
+    
+    Y_pred = round(pihat1(:,2));
+    
+    
+end
+
+    [X1,Y1,T,AUC1] = perfcurve(all_labels,all_pred_1,1)  
+
+    [X2,Y2,T,AUC2] = perfcurve(all_labels,all_pred_2,1)
+
+    [X3,Y3,T,AUC3] = perfcurve(all_labels,all_pred_3,1)
+   
+
+% random forest feature importance
+imp = Mdl3.OOBPermutedPredictorDeltaError;
+
+figure(1);clf;
+bar(imp);
+title('Curvature Test');
+ylabel('Predictor importance estimates');
+xticks([1:20])
+
+figure(2);clf;
+hold on
+plot(X1,Y1,'LineWidth',2)%4
+plot(X2,Y2,'LineWidth',2)%7
+plot(X3,Y3,'LineWidth',2)%10
+legend(sprintf('Univariate  - AUC: %f2',AUC1),sprintf('Bivariate  - AUC: %f2',AUC2),sprintf('All - AUC: %f2',AUC3),'Location','SouthEast')%86/85/91
+xlabel('False positive rate')
+ylabel('True positive rate')
+title('All abnormal vs. normal channel classification')
+%% render abnormalities
+soz_ch_all = [zeros(1772,1);soz_ch];
+this_pt = 111; %114 res - 45/50 EIZ - 52/64, non-inv - 20,30 % 120 - res - 2., EIZ - 23./64, non-inv - 33/50.
+this_pt_abn = all_pred_3(find(all_pts==this_pt));
+this_pt_soz = multi_class_all(find(all_pts==this_pt));
+this_pt_res = resect_ch_all(find(all_pts==this_pt));
+this_pt_coords = all_coords(find(all_pts==this_pt),:);
+this_pt_eeg = all_wake_data(:,find(all_pts==this_pt));
+%this_pt_delta_coh_abn(isnan(this_pt_delta_coh_abn)) = 0;
+
+this_pt_zscores = all_feat_zscores(find(all_pts==this_pt),:);
+
+figure(1);clf;
+hold on
+for i = 1:10
+    plot([1:12000],[this_pt_eeg(:,4*i)+i*175],'k-')
+end
+hold off
+
+%this_pt_soz(this_pt_soz==3) = 2;
+%this_pt_soz(this_pt_res==1) = 3;
+
+% figure(1);clf;
+% imagesc(all_feat_zscores(find(all_pts==this_pt),:))
+% colorbar
+% caxis([0,5])
+
+% figure(2);clf;
+% subplot(1,3,1)
+% imagesc(this_pt_zscores(2,:)')
+% caxis([0,4])
+% colorbar
+% subplot(1,3,2)
+% imagesc(this_pt_zscores(23,:)')
+% caxis([0,4])
+% colorbar
+% subplot(1,3,3)
+% imagesc(this_pt_zscores(50,:)')
+% caxis([0,4])
+% colorbar
+% 
+% figure(3);
+% subplot(3,1,1)
+% plot(this_pt_eeg(:,2))
+% subplot(3,1,2)
+% plot(this_pt_eeg(:,23))
+% subplot(3,1,3)
+% plot(this_pt_eeg(:,50))
+%
+
+figure(4);clf;
+final_elec_matrix = [this_pt_coords,this_pt_abn,ones(size(this_pt_coords,1),1)];
+%final_elec_matrix = final_elec_matrix([2,23,50],:)
+dlmwrite('render_elecs.node',final_elec_matrix,'delimiter',' ','precision',5)
+BrainNet_MapCfg('BrainMesh_ICBM152_smoothed.nv','render_elecs.node','abnormality_render.mat')
+delete render_elecs.node
+
+
+
 %% Examine correlations between z scores
 [r,p] = corr(all_feat_zscores2)
 figure(1);clf;
 imagesc(r)
 colorbar
+
+%% lesional vs non-lesional
+EIZ = [zeros(1772,1);[spike_ind - spike_ind.*soz_ch]];
+all_labels = [all_pts,[EIZ+[zeros(1772,1);soz_ch]],EIZ,[zeros(1772,1);soz_ch],resect_ch_all,[ones(1772,1);HUP_outcome_all]];
+
+%% get patient-level SOZ, RZ, spike indicators
+all_normal_good = [];
+all_normal_poor = [];
+all_les_in_in = [];
+all_nonles_in_in = [];
+all_SOZ_in_in = [];
+all_SOZ_in_out = [];
+all_spike_in_in = [];
+all_spike_in_out = [];
+
+b = 0;
+ptile = 75;
+for s = 107:166
+    b = b+1
+    a = s;
+    
+    pt_roi = pt_loc{s};
+    res = resected_ch([patient_no==b]); 
+    spike = spike_24h([patient_no==b]);
+    soz = soz_ch([patient_no==b]);
+    
+    roi_res = NaN*zeros(42,1);
+    
+%     for r = 1:42
+%         this_roi = (r);
+%         roi_res(r) = mean(res(pt_roi==this_roi));
+%         roi_soz(r) = mean(soz(pt_roi==this_roi));
+%         roi_spike(r) = mean(spike(pt_roi==this_roi));
+%     end
+%     
+%     HUP_scores(a).res = ceil(roi_res);
+%     HUP_scores(a).spike = (roi_spike>24);
+%     HUP_scores(a).soz = ceil(roi_soz);
+%     
+%     res_roi = [HUP_scores(a).res==1];
+%     soz_roi = ([HUP_scores(a).soz==1]);
+%     spk_roi = ([HUP_scores(a).spike==1]);
+%     
+%     non_res_roi = ([HUP_scores(a).res==0]);
+%     non_soz_roi = ([HUP_scores(a).soz==0]);
+%     non_spk_roi = ([HUP_scores(a).spike==0]);
+%     
+    
+    % spared edges
+    all_normal = bivariate_native(feat).subj(a).data(find(~res),find(~res));
+    HUP_normal(b,1) = nanmean(all_normal(:));
+    
+    all_normal_good = [all_normal_good;prctile((all_normal(:)),ptile)];
+    
+    % resected edges 
+    %in_out_resect = bivariate_native(feat).subj(a).data(find(res),:);
+    in_in_resect = bivariate_native(feat).subj(a).data(find(res),find(~res));
+    %HUP_resect(b,1) = nanmedian(in_out_resect(:)); % (in-out)
+    %HUP_resect(b,2) = nanmedian(in_in_resect(:)); % in-in
+    %HUP_resect(b,3) = nanmedian(test_HUP_scores(:)); % all
+    if lesion_field(b)
+    all_les_in_in = [all_les_in_in;prctile(in_in_resect(:),ptile)];
+    else
+    all_nonles_in_in = [all_nonles_in_in;prctile(in_in_resect(:),ptile)];
+    end
+    %all_RZ_in_out = [all_RZ_in_out;prctile((in_out_resect(:)),ptile)];
+    
+    % soz edges (in-out)
+    in_out_soz = bivariate_native(feat).subj(a).data(find(soz),find(~soz));
+    in_in_soz = bivariate_native(feat).subj(a).data(find(soz),find(soz));
+    %HUP_soz(b,1) = nanmedian(in_out_soz(:)); % (in-out)
+    %HUP_soz(b,2) = nanmedian(in_in_soz(:)); % in-in
+    
+    all_SOZ_in_in = [all_SOZ_in_in;prctile(in_in_soz(:),ptile)];
+    all_SOZ_in_out = [all_SOZ_in_out;prctile((in_out_soz(:)),ptile)];
+    
+    % spike edges 
+    try in_out_spike = bivariate_native(feat).subj(a).data(find(spike),find(~spike));
+        all_spike_in_out = [all_spike_in_out;prctile((in_out_spike(:)),ptile)];
+    catch anyerror
+    end
+    try in_in_spike = bivariate_native(feat).subj(a).data(find(spike),find(spike));
+        all_spike_in_in = [all_spike_in_in;prctile(in_in_spike(:),ptile)];
+    catch anyerror
+    end
+%     HUP_spike(a,1) = nanmedian(in_out_spike(:)); % (in-out)
+%     HUP_spike(a,2) = nanmedian(in_in_spike(:)); % in-in
+%     
+    
+     
+%     
+end
+
+%
+figure(1);clf;
+hold on
+
+scatter(ones(length(all_normal_good),1),all_normal_good,'MarkerEdgeColor',color1,'MarkerFaceColor',color1,'jitter','on')
+plot([0.75 1.25],[nanmedian(all_normal_good) nanmedian(all_normal_good)],'k-','LineWidth',2)
+scatter(3*ones(length(all_SOZ_in_in),1),all_SOZ_in_in,'MarkerEdgeColor',color2,'MarkerFaceColor',color2,'jitter','on')
+plot([2.75 3.25],[nanmedian(all_SOZ_in_in) nanmedian(all_SOZ_in_in)],'k-','LineWidth',2)
+scatter(4*ones(length(all_SOZ_in_out),1),all_SOZ_in_out,'MarkerEdgeColor',color2,'MarkerFaceColor',color2,'jitter','on')
+plot([3.75 4.25],[nanmedian(all_SOZ_in_out) nanmedian(all_SOZ_in_out)],'k-','LineWidth',2)
+scatter(5*ones(length(all_spike_in_in),1),all_spike_in_in,'MarkerEdgeColor',color4,'MarkerFaceColor',color4,'jitter','on')
+plot([4.75 5.25],[nanmedian(all_spike_in_in) nanmedian(all_spike_in_in)],'k-','LineWidth',2)
+scatter(6*ones(length(all_spike_in_out),1),all_spike_in_out,'MarkerEdgeColor',color4,'MarkerFaceColor',color4,'jitter','on')
+plot([5.75 6.25],[nanmedian(all_spike_in_out) nanmedian(all_spike_in_out)],'k-','LineWidth',2)
+xlim([0.5, 6.5])
+ylim([0 6])
+hold off
+
+ranksum(all_normal_good,all_SOZ_in_in)
+ranksum(all_normal_good,all_SOZ_in_out)
+ranksum(all_normal_good,all_spike_in_in)
+ranksum(all_normal_good,all_spike_in_out)
+
+ranksum(all_SOZ_in_in,all_SOZ_in_out)
+ranksum(all_SOZ_in_in,all_spike_in_in)
+ranksum(all_spike_in_in,all_spike_in_out)
+ranksum(all_SOZ_in_out,all_spike_in_out)
+%% boxplots baby
+
+num_good = sum([HUP_outcome==1]);
+num_poor = sum([HUP_outcome>1]);
+
+good_out=HUP_normal(HUP_outcome==1);
+poor_out=HUP_normal(HUP_outcome>1);
+
+good_in_out_soz=HUP_soz([HUP_outcome==1],1);
+good_in_in_soz=HUP_soz([HUP_outcome==1],2);
+poor_in_out_soz=HUP_soz([HUP_outcome>1],1);
+poor_in_in_soz=HUP_soz([HUP_outcome>1],2);
+
+good_in_out_spike=HUP_spike([HUP_outcome==1],1);
+good_in_in_spike=HUP_spike([HUP_outcome==1],2);
+poor_in_out_spike=HUP_spike([HUP_outcome>1],1);
+poor_in_in_spike=HUP_spike([HUP_outcome>1],2);
+
+all_plot_data = NaN*zeros(57,6);
+all_plot_data(1:num_good,1) = good_in_in_soz;
+all_plot_data(1:num_poor,2) = poor_in_in_soz;
+all_plot_data(1:num_good,3) = good_in_out_soz;
+all_plot_data(1:num_poor,4) = poor_in_out_soz;
+all_plot_data(1:num_good,5) = good_out;
+all_plot_data(1:num_poor,6) = poor_out;
+
+ranksum(good_in_in_soz,poor_in_in_soz)
+ranksum(good_in_out_soz,poor_in_out_soz)
+ranksum(good_out,poor_out)
+
+signrank(good_in_in_soz,good_in_out_soz)
+signrank(good_in_out_soz,good_out)
+signrank(good_in_in_soz,good_out)
+
+signrank(poor_in_in_soz,poor_in_out_soz)
+signrank(poor_in_out_soz,poor_out)
+signrank(poor_in_in_soz,poor_out)
+
+ranksum(good_in_in_spike,poor_in_in_spike)
+ranksum(good_in_out_spike,poor_in_out_spike)
+ranksum(good_out,poor_out)
+
+signrank(good_in_in_spike,good_in_out_spike)
+signrank(good_in_out_spike,good_out)
+signrank(good_in_in_spike,good_out)
+
+signrank(poor_in_in_spike,poor_in_out_spike)
+signrank(poor_in_out_spike,poor_out)
+signrank(poor_in_in_spike,poor_out)
+
+figure(1);clf;
+boxplot(all_plot_data)
+ylim([-2 2])
+
+%% lesional vs non-lesional
+r1 = HUP_soz((lesion_field==0),2);
+r2 = HUP_soz(lesion_field,2);
+
+r3 = HUP_normal((lesion_field==0));
+r4 = HUP_normal(lesion_field);
+
+ranksum(r1,r2)
+
+figure(1);clf;
+hold on
+plot(ones(length(r1),1),r1,'ko')
+plot(2*ones(length(r2),1),r2,'ko')
+xlim([0.5 2.5])
+hold off
 
 
