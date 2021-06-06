@@ -73,7 +73,7 @@ end
 
 pt_adj = median(pt_adj,3);
 
-elseif strcmp(type,'coherence')
+elseif strcmp(type,'coh')
     
     num_chs = size(iEEG_signals,2);
     pt_adj = zeros(num_chs,num_chs);
