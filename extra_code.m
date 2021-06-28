@@ -381,3 +381,44 @@ plot(ones(length(r1),1),r1,'ko')
 plot(2*ones(length(r2),1),r2,'ko')
 xlim([0.5 2.5])
 hold off
+
+
+r1 = all_mean_wentropy([normal_HUP_ch;normal_MNI_ch]);
+r2 = all_mean_wentropy(poor_out_ch);
+r3 = all_mean_wentropy(EIZ_good_ch);
+r4 = all_mean_wentropy(EIZ_poor_ch);
+r5 = all_mean_wentropy(soz_good_ch);
+r6 = all_mean_wentropy(soz_poor_ch);
+
+ranksum(all_mean_wentropy(normal_HUP_ch),all_mean_wentropy(normal_MNI_ch))
+
+p1 = ranksum(r1,r3)
+p2 = ranksum(r3,r5)
+p3 = ranksum(r1,r5)
+p4 = ranksum(r2,r4)
+p5 = ranksum(r4,r6)
+p6 = ranksum(r2,r6)
+p7 = ranksum(r1,r2)
+p8 = ranksum(r3,r4)
+p9 = ranksum(r5,r6)
+
+figure(1);clf;
+hold on
+scatter(ones(length(r1),1),r1,'MarkerEdgeColor',color1,'MarkerFaceColor',color1,'jitter','on')
+plot([0.75 1.25],[median(r1) median(r1)],'k-','LineWidth',2)
+scatter(2*ones(length(r2),1),r2,'MarkerEdgeColor',color2,'MarkerFaceColor',color2,'jitter','on')
+plot([1.75 2.25],[median(r2) median(r2)],'k-','LineWidth',2)
+scatter(3*ones(length(r3),1),r3,'MarkerEdgeColor',color1,'MarkerFaceColor',color1,'jitter','on')
+plot([2.75 3.25],[median(r3) median(r3)],'k-','LineWidth',2)
+scatter(4*ones(length(r4),1),r4,'MarkerEdgeColor',color2,'MarkerFaceColor',color2,'jitter','on')
+plot([3.75 4.25],[median(r4) median(r4)],'k-','LineWidth',2)
+scatter(5*ones(length(r5),1),r5,'MarkerEdgeColor',color1,'MarkerFaceColor',color1,'jitter','on')
+plot([4.75 5.25],[median(r5) median(r5)],'k-','LineWidth',2)
+scatter(6*ones(length(r6),1),r6,'MarkerEdgeColor',color2,'MarkerFaceColor',color2,'jitter','on')
+plot([5.75 6.25],[median(r6) median(r6)],'k-','LineWidth',2)
+xlim([0.5, 6.5])
+ylim([2,22])
+ylabel('Wavelet entropy')
+xticks([1:6])
+xticklabels({'Engel 1, non-SOZ, non-EIZ','Engel 2+, non-SOZ, non-EIZ', 'Engel 1 EIZ','Engel 2+ EIZ','Engel 1 SOZ','Engel 2+ SOZ'})
+hold off

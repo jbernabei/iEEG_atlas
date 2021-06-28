@@ -67,6 +67,8 @@ color2 = [0.6350, 0.0780, 0.1840];
 color3 = [255, 248, 209]./255; 
 color4 = [103 55 155]/255;
 color6 = [78 172 91]/255;
+color7 = [0.9290, 0.6940, 0.1250];
+color8 = [0.8500, 0.3250, 0.0980];
 
 % assign wake clips from MNI and HUP into a final data matrix
 all_wake_data = [Data_W,wake_clip];
@@ -202,7 +204,7 @@ yticklabels(custom_atlas{:,1})
 %% calculate power spectrum
 all_wake_data = [Data_W,wake_clip];
 
-[pxx,f] = pwelch(all_wake_data,200,100,[0.5:0.5:80],200);
+[pxx,f] = pwelch(all_wake_data,400,200,[0.5:0.5:80],200); % original was 200/100
 pxx_norm = pxx./sum(pxx);
 
 %% Analyze power spectral density between HUP/MNI, Normal/irritative zone/SOZ
@@ -281,11 +283,11 @@ for i = 1:20
     txt_b = '\beta';
     txt_g = '\gamma';
     txt_sig = '*';
-    text(2,0.15,txt_d);
-    text(5.5,0.15,txt_t);
-    text(9.5,0.15,txt_a);
-    text(18,0.15,txt_b);
-    text(40,0.15,txt_g);
+    text(2,0.15,txt_d,'FontSize', 12);
+    text(5.5,0.15,txt_t,'FontSize', 12);
+    text(9.5,0.15,txt_a,'FontSize', 12);
+    text(18,0.15,txt_b,'FontSize', 12);
+    text(40,0.15,txt_g,'FontSize', 12);
     if pval_matrix_norm(i,1)<(0.05/100)
         text(2,0.12,txt_sig,'FontSize', 20);
     end
@@ -322,19 +324,19 @@ for i = 1:20
     plot([30,30],[0,0.4],'k-')
     plot(x_axis,median_normal)
     patch([x_axis fliplr(x_axis)], [prct_25_75_normal(1,:) fliplr(prct_25_75_normal(2,:))], color1, 'FaceAlpha',0.5, 'EdgeColor','none')
-    plot(x_axis,median_EIZ)
-    patch([x_axis fliplr(x_axis)], [prct_25_75_EIZ(1,:) fliplr(prct_25_75_EIZ(2,:))], color6, 'FaceAlpha',0.5, 'EdgeColor','none')
-    try plot(x_axis,median_soz)
+    plot(x_axis,median_EIZ,'Color',color7)
+    patch([x_axis fliplr(x_axis)], [prct_25_75_EIZ(1,:) fliplr(prct_25_75_EIZ(2,:))], color7, 'FaceAlpha',0.5, 'EdgeColor','none')
+    try plot(x_axis,median_soz,'Color',color2)
     patch([x_axis fliplr(x_axis)], [prct_25_75_soz(1,:) fliplr(prct_25_75_soz(2,:))], color2, 'FaceAlpha',0.5, 'EdgeColor','none')
     catch anyerror
     end
     
     % add greek letters for frequency bands
-    text(2,0.15,txt_d);
-    text(5.5,0.15,txt_t);
-    text(9.5,0.15,txt_a);
-    text(18,0.15,txt_b);
-    text(40,0.15,txt_g);
+    text(2,0.15,txt_d,'FontSize', 12);
+    text(5.5,0.15,txt_t,'FontSize', 12);
+    text(9.5,0.15,txt_a,'FontSize', 12);
+    text(18,0.15,txt_b,'FontSize', 12);
+    text(40,0.15,txt_g,'FontSize', 12);
     if pval_matrix_EIZ(i,1)<(0.05/100)
         text(2,0.12,txt_sig,'FontSize', 20); 
     end
@@ -411,111 +413,18 @@ for m = 1:2 % m for different metrics
 end
 %save('univariate_zscores.mat','univariate_zscores')
 
-%% mass univariate testing
-% 21 ROI x 5  = 105 tests to correct for
-freq_inds = [1,  8; % 0.5 - 4 Hz
-             9,  16; % 4 - 8 Hz
-             17, 26; % 8 - 13 Hz
-             27, 60; % 13 - 30 Hz 
-             61, 160]; % 30 - 80 Hz
-
-for i = 1:20
-    for j = 1:5
-        roi_soz = intersect((find(soz_ch)+1772),[find(new_roi==(2*(i-1)+1));find(new_roi==2*i)]);
-        roi_eiz = intersect((EIZ_ch),[find(new_roi==(2*(i-1)+1));find(new_roi==2*i)]);
-        roi_hup = intersect(normal_HUP_ch,[find(new_roi==(2*(i-1)+1));find(new_roi==2*i)]);
-        roi_mni = intersect(normal_MNI_ch,[find(new_roi==(2*(i-1)+1));find(new_roi==2*i)]);
-        soz_feat = median(pxx_norm([freq_inds(j,1):freq_inds(j,2)],roi_soz))';
-        eiz_feat = median(pxx_norm([freq_inds(j,1):freq_inds(j,2)],roi_eiz))';
-        HUP_feat = median(pxx_norm([freq_inds(j,1):freq_inds(j,2)],roi_hup))';
-        MNI_feat = median(pxx_norm([freq_inds(j,1):freq_inds(j,2)],roi_mni))';
-        [p,h] = ranksum(HUP_feat,MNI_feat); % HUP vs MNI
-        pval_matrix_norm(i,j) = p;
-        [p1,h] = ranksum([HUP_feat;MNI_feat],soz_feat);
-        pval_matrix_soz(i,j) = p1;
-        [p2,h] = ranksum([HUP_feat;MNI_feat],eiz_feat);
-        pval_matrix_eiz(i,j) = p2;
-    end
-end
-
-figure(1);clf;
-subplot(1,3,1)
-imagesc((pval_matrix_norm.*100)<0.05)
-title('HUP vs. MNI normal channels')
-xticks([1:5])
-xticklabels({'Delta','Theta','Alpha','Beta','Gamma'})
-yticks([1:20])
-set(gca,'TickLabelInterpreter', 'none');
-yticklabels(split_roi_name)
-subplot(1,3,2)
-imagesc((pval_matrix_eiz.*100)<0.05)
-title('Irritative zone vs. composite atlas')
-xticks([1:5])
-xticklabels({'Delta','Theta','Alpha','Beta','Gamma'})
-yticks([1:20])
-set(gca,'TickLabelInterpreter', 'none');
-yticklabels(split_roi_name)
-subplot(1,3,3)
-imagesc((pval_matrix_soz.*100)<0.05)
-title('Seizure onset zone  vs. composite atlas')
-xticks([1:5])
-xticklabels({'Delta','Theta','Alpha','Beta','Gamma'})
-yticks([1:20])
-set(gca,'TickLabelInterpreter', 'none');
-yticklabels(split_roi_name)
-
 %% wavelet entropy validation across all regions
 for i = 1:60
     for j = 1:size(all_wake_data,2)
     start_inds = (i-1)*200+1;
     end_inds = 200*i;
-    all_wentropy(i,j) = wentropy(all_wake_data((start_inds:end_inds),j),'shannon');
+    all_wentropy(i,j) = (wentropy(all_wake_data((start_inds:end_inds),j),'shannon'));
     end
 end
 
 all_mean_wentropy = log(-1*median(all_wentropy));
 
-r1 = all_mean_wentropy([normal_HUP_ch;normal_MNI_ch]);
-r2 = all_mean_wentropy(poor_out_ch);
-r3 = all_mean_wentropy(EIZ_good_ch);
-r4 = all_mean_wentropy(EIZ_poor_ch);
-r5 = all_mean_wentropy(soz_good_ch);
-r6 = all_mean_wentropy(soz_poor_ch);
 
-ranksum(all_mean_wentropy(normal_HUP_ch),all_mean_wentropy(normal_MNI_ch))
-
-p1 = ranksum(r1,r3)
-p2 = ranksum(r3,r5)
-p3 = ranksum(r1,r5)
-p4 = ranksum(r2,r4)
-p5 = ranksum(r4,r6)
-p6 = ranksum(r2,r6)
-p7 = ranksum(r1,r2)
-p8 = ranksum(r3,r4)
-p9 = ranksum(r5,r6)
-
-figure(1);clf;
-hold on
-scatter(ones(length(r1),1),r1,'MarkerEdgeColor',color1,'MarkerFaceColor',color1,'jitter','on')
-plot([0.75 1.25],[median(r1) median(r1)],'k-','LineWidth',2)
-scatter(2*ones(length(r2),1),r2,'MarkerEdgeColor',color2,'MarkerFaceColor',color2,'jitter','on')
-plot([1.75 2.25],[median(r2) median(r2)],'k-','LineWidth',2)
-scatter(3*ones(length(r3),1),r3,'MarkerEdgeColor',color1,'MarkerFaceColor',color1,'jitter','on')
-plot([2.75 3.25],[median(r3) median(r3)],'k-','LineWidth',2)
-scatter(4*ones(length(r4),1),r4,'MarkerEdgeColor',color2,'MarkerFaceColor',color2,'jitter','on')
-plot([3.75 4.25],[median(r4) median(r4)],'k-','LineWidth',2)
-scatter(5*ones(length(r5),1),r5,'MarkerEdgeColor',color1,'MarkerFaceColor',color1,'jitter','on')
-plot([4.75 5.25],[median(r5) median(r5)],'k-','LineWidth',2)
-scatter(6*ones(length(r6),1),r6,'MarkerEdgeColor',color2,'MarkerFaceColor',color2,'jitter','on')
-plot([5.75 6.25],[median(r6) median(r6)],'k-','LineWidth',2)
-xlim([0.5, 6.5])
-ylim([2,22])
-ylabel('Wavelet entropy')
-xticks([1:6])
-xticklabels({'Engel 1, non-SOZ, non-EIZ','Engel 2+, non-SOZ, non-EIZ', 'Engel 1 EIZ','Engel 2+ EIZ','Engel 1 SOZ','Engel 2+ SOZ'})
-hold off
-
-%%
 figure(1);clf;
 for i = 1:20
     % extract indices that correspond to a given ROI for HUP and MNI data
@@ -542,7 +451,7 @@ for i = 1:20
     
     subplot(4,5,i)
     hold on
-    violin(plot_cell,'xlabel',{'','',''},'facecolor',[color1;color6;color2],'mc',[],'medc','k');%,'edgecolor','k');
+    violin(plot_cell,'xlabel',{'','',''},'facecolor',[color1;color7;color2],'mc',[],'medc','k');%,'edgecolor','k');
     legend('off')
     txt_sig1 = '+';
     txt_sig2 = '*';
@@ -562,8 +471,7 @@ for i = 1:20
         text(2.5,20.25,txt_sig2,'FontSize', 20);
     end
     
-    ylabel('Probability')
-    xlabel('- Log Entropy')
+    ylabel('Log -Entropy')
     this_roi_name = split(string(custom_atlas{2*i,1}),'_R'); % extract roi name without laterality
     split_roi_name{i,1} = this_roi_name(1);
     title(sprintf('%s',this_roi_name(1)), 'Interpreter', 'none') % use that as title
@@ -590,7 +498,7 @@ for c = 1:2
             s 
             
             % extract subject data from all the data (columns are channels)
-            pt_data = sleep_clip;%all_wake_data(:,[all_pts==s]);
+            pt_data = all_wake_data(:,[all_pts==s]);
 
             % call functional connectivity code (200 is Hz, 1 is window size in seconds)
             [pt_adj] = compute_FC(pt_data, 200, 1, conn_type{c},conn_band{f});
@@ -662,6 +570,9 @@ for c = 1:2
         % call for HUP patients
         [conn_edge_hup, std_edge_hup, samples_edge_hup, ~, raw_atlas_edge_hup] = create_atlas_by_edge(all_pt_adj(107:166), pt_loc(107:166), all_abn(107:166), [1:40]', 1);
 
+        this_feat_conn(feat).mni = conn_edge_mni;
+        this_feat_conn(feat).hup = conn_edge_hup;
+        
         % loop through all patients
         for s = 1:166 % change this back
             a = a+1;
@@ -681,6 +592,11 @@ for c = 1:2
 end
 
 %% correlate connectivity between MNI and HUP
+for feat = 1:10
+    
+    conn_edge_mni = this_feat_conn(feat).mni;
+    conn_edge_hup = this_feat_conn(feat).hup;
+    
 conn_edge_all = conn_edge_mni(:)+conn_edge_hup(:);
 conn_edge_mni(isnan(conn_edge_all)) = [];
 conn_edge_hup(isnan(conn_edge_all)) = [];
@@ -689,14 +605,13 @@ std_edge_all = std_edge_mni(:)+std_edge_hup(:);
 std_edge_mni(isnan(std_edge_all)) = [];
 std_edge_hup(isnan(std_edge_all)) = [];
 
-figure(1);clf;
+figure(feat);clf;
 plot(exp(conn_edge_mni),exp(conn_edge_hup),'ko')
 [r,p] = corr(exp(conn_edge_mni)',exp(conn_edge_hup)')
 xlabel('MNI delta coherence')
 ylabel('HUP delta coherence')
-title('Correlation between atlas edges, r = 0.43, p = 4.6e-19')
-xlim([0 0.1])
-ylim([0 0.1])
+title(sprintf('Correlation between atlas edges, r = %f, p = %f',r,p))
+end
 %% process bivariate edge features into nodal features
 
 for f = 1:10
@@ -704,7 +619,7 @@ for f = 1:10
     abs_feat = [];
     for s = 1:166
         % take 80th percentile across all edges of each node
-        abs_feat = [abs_feat;prctile(abs(bivariate_native(f).subj(s).data),80)'];
+        abs_feat = [abs_feat;prctile(abs(bivariate_native(f).subj(s).data),75)'];
     end
     
     % assign into feature matrix
@@ -713,7 +628,7 @@ end
 
 % for the single bivariate feature we want the maximum absolute Z score
 % across all 10 bivariate features
-single_bivariate_feat = max(abs_bivariate_feats')';
+[single_bivariate_feat, which_feat_bi] = max(abs_bivariate_feats,[],2);
 
 % assign previously calculated univariate z scores into bivariate scores
 all_feat_zscores = [univariate_zscores, abs_bivariate_feats];
@@ -722,6 +637,9 @@ all_feat_zscores = [univariate_zscores, abs_bivariate_feats];
 incomplete_channels = find(isnan(sum(all_feat_zscores')));
 single_bivariate_feat(incomplete_channels) = []; 
 
+univariate_feats = all_feat_zscores(:,1:10);
+univariate_feats(incomplete_channels,:) = [];
+[single_univariate_feat, which_feat_uni] = max(abs(univariate_feats),[],2);
 
 %% combine univariate and bivariate
 %all_feat_zscores = [univariate_zscores, all_bivariate_feats];
@@ -754,7 +672,7 @@ all_pred_1 = zeros(size(all_labels));
 all_pred_2 = zeros(size(all_labels)); 
 all_pred_3 = zeros(size(all_labels)); 
 
-[part] = make_xval_partition(length(all_labels), 10);
+[part] = make_xval_partition(length(all_labels), 20);
 for p = 1:10
     p
     X_train = all_feats(find(part~=p),:);
@@ -794,7 +712,7 @@ end
     [X3,Y3,T,AUC3] = perfcurve(all_labels,all_pred_3,1)
    
 
-% random forest feature importance
+%% random forest feature importance
 imp = Mdl3.OOBPermutedPredictorDeltaError;
 
 figure(1);clf;
@@ -895,7 +813,7 @@ end
 univariate_feats = all_feat_zscores(:,1:10);
 univariate_feats(incomplete_channels,:) = [];
 
-single_univariate_feat = prctile(abs(univariate_feats'),100)';
+single_univariate_feat = max(abs(univariate_feats'))';
 
 single_univariate_feat(isinf(single_univariate_feat)) = nanmedian(single_univariate_feat);
 single_bivariate_feat_2(isinf(single_bivariate_feat_2)) = nanmedian(single_bivariate_feat_2);
@@ -1092,6 +1010,7 @@ ylim([0 10])
 %% Examine correlations between z scores
 [r,p] = corr(all_feat_zscores2)
 figure(1);clf;
+r(p>0.0001) = NaN;
 imagesc(r)
 colorbar
 

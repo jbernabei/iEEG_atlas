@@ -58,7 +58,7 @@ function [mean_vec,median_vec,std_vec,feat_vals] = create_univariate_atlas(raw_d
         end
         
         % take median of each channel's entropy across time
-        feat_vals = median(real(log(all_wentropy)))';
+        feat_vals = median(real(log(-1*all_wentropy)))';
         
     elseif strcmp(method,'bandpower')
         
