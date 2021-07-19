@@ -34,33 +34,33 @@ num_windows = floor(size(iEEG_signals,1)./(sample_rate.*window_len));
 pt_adj = zeros(size(iEEG_signals,2),size(iEEG_signals,2),num_windows);
 window_size = window_len.*sample_rate;
 
-    % filter in order to extract desired frequency band
-    if strcmp(band,'delta')
-        % bandpass filter 0.5-4 Hz
-        [b1,a1] = butter(4,[0.5 4]/(200/2));
-        iEEG_signals = filter(b1, a1, iEEG_signals);
-
-    elseif strcmp(band,'theta')
-        % bandpass filter 4-8 Hz
-        [b2,a2] = butter(4,[4 8]/(200/2));
-        iEEG_signals = filter(b2, a2, iEEG_signals);
-
-    elseif strcmp(band,'alpha')
-        % bandpass filter 8-13 Hz
-        [b3,a3] = butter(4,[8 13]/(200/2));
-        iEEG_signals = filter(b3, a3, iEEG_signals);
-
-    elseif strcmp(band,'beta')
-        % bandpass filter 13-30 Hz
-        [b4,a4] = butter(4,[13 30]/(200/2));
-        iEEG_signals = filter(b4, a4, iEEG_signals);
-
-    elseif strcmp(band,'gamma')
-        % bandpass filter 30-80 Hz
-        [b5,a5] = butter(4,[30 80]/(200/2));
-        iEEG_signals = filter(b5, a5, iEEG_signals);
-
-    end
+%     % filter in order to extract desired frequency band
+%     if strcmp(band,'delta')
+%         % bandpass filter 0.5-4 Hz
+%         [b1,a1] = butter(4,[0.5 4]/(200/2));
+%         iEEG_signals = filter(b1, a1, iEEG_signals);
+% 
+%     elseif strcmp(band,'theta')
+%         % bandpass filter 4-8 Hz
+%         [b2,a2] = butter(4,[4 8]/(200/2));
+%         iEEG_signals = filter(b2, a2, iEEG_signals);
+% 
+%     elseif strcmp(band,'alpha')
+%         % bandpass filter 8-13 Hz
+%         [b3,a3] = butter(4,[8 13]/(200/2));
+%         iEEG_signals = filter(b3, a3, iEEG_signals);
+% 
+%     elseif strcmp(band,'beta')
+%         % bandpass filter 13-30 Hz
+%         [b4,a4] = butter(4,[13 30]/(200/2));
+%         iEEG_signals = filter(b4, a4, iEEG_signals);
+% 
+%     elseif strcmp(band,'gamma')
+%         % bandpass filter 30-80 Hz
+%         [b5,a5] = butter(4,[30 80]/(200/2));
+%         iEEG_signals = filter(b5, a5, iEEG_signals);
+% 
+%     end
 
 
 
