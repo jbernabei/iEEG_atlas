@@ -116,13 +116,13 @@ spike_thresh = 24; % this is empirical, 1 spike/hour
 spike_ind = [spike_24h>spike_thresh];
 
 % define all abnormal channels
-abnormal_ch = find([resected_ch+spike_ind+soz_ch]>0)+1772;
+abnormal_ch = find([resected_ch+spike_ind+soz_ch+(HUP_outcome_all>1)]>0)+1772;
 
 % define all seizure onset indices
 soz_ch_inds = find(soz_ch)+1772;
 
 % define normal HUP channels
-normal_HUP_ch = find([resected_ch+spike_ind+soz_ch]==0)+1772;
+normal_HUP_ch = find([resected_ch+spike_ind+soz_ch+(HUP_outcome_all>1)]==0)+1772;
 
 % define normal MNI channels
 normal_MNI_ch = [1:1772]';
@@ -132,17 +132,6 @@ all_normal_ch = [normal_MNI_ch;normal_HUP_ch];
 
 % define exclusive irritative zone
 EIZ_ch = find(spike_ind - spike_ind.*soz_ch)+1772;
-
-% split EIZ into good vs poor
-EIZ_good_ch = find((spike_ind - spike_ind.*soz_ch).*(HUP_outcome_all==1))+1772;
-EIZ_poor_ch = find((spike_ind - spike_ind.*soz_ch).*(HUP_outcome_all>1))+1772;
-
-% split SOZ into good vs poor
-soz_good_ch = find(soz_ch.*(HUP_outcome_all==1))+1772;
-soz_poor_ch = find(soz_ch.*(HUP_outcome_all>1))+1772;
-
-% define non-EIZ non-SOZ poor outcome channels
-poor_out_ch = find([resected_ch+spike_ind+soz_ch+(HUP_outcome_all==1)]==0)+1772;
 
 %% count HUP and MNI in original atlas and then new atlas
 mni_roi_old = all_roi(1:1772);
@@ -224,8 +213,8 @@ for i = 1:20
     % (combining data from L and R hemispheres)
     roi_mni = intersect(normal_MNI_ch,[find(new_roi==(2*(i-1)+1));find(new_roi==2*i)]);
     roi_hup = intersect(normal_HUP_ch,[find(new_roi==(2*(i-1)+1));find(new_roi==2*i)]);
-    roi_EIZ = intersect([EIZ_good_ch;EIZ_poor_ch],[find(new_roi==(2*(i-1)+1));find(new_roi==2*i)]);
-    roi_soz = intersect([soz_good_ch;soz_poor_ch],[find(new_roi==(2*(i-1)+1));find(new_roi==2*i)]);
+    roi_EIZ = intersect([EIZ_ch],[find(new_roi==(2*(i-1)+1));find(new_roi==2*i)]);
+    roi_soz = intersect([soz_ch_inds],[find(new_roi==(2*(i-1)+1));find(new_roi==2*i)]);
     
     % median power spectral density across channels
     median_mni = median(pxx_norm(:,roi_mni),2);
@@ -541,16 +530,14 @@ std_edge_all = std_edge_mni(:)+std_edge_hup(:);
 std_edge_mni(isnan(std_edge_all)) = [];
 std_edge_hup(isnan(std_edge_all)) = [];
 
-figure(1);clf
-%subplot(1,5,feat)
+figure(1);
+subplot(1,5,feat)
 hold on
 plot((conn_edge_mni),(conn_edge_hup),'k.','Color',[128 128 128]/255)
 [r,p1] = corr((conn_edge_mni)',(conn_edge_hup)')
 rvals(feat) = r;
 xlabel('MNI connectivity')
 ylabel('HUP connectivity')
-xlim([0,0.15])
-ylim([0,0.15])
 p = polyfit((conn_edge_mni),(conn_edge_hup),1);
 f = polyval(p,(conn_edge_mni));
 plot((conn_edge_mni),f,'k-','LineWidth',2)
@@ -558,8 +545,8 @@ title(sprintf('%s %s, r = %f, p = %f',a,aa,r,p1))
 hold off
 end
 
-figure(2);clf
-bar(rvals)
+% figure(2);clf
+% bar(rvals)
 %% process bivariate edge features into nodal features
 
 for f = 1:5
@@ -576,7 +563,7 @@ end
 
 % for the single bivariate feature we want the maximum absolute Z score
 % across all 10 bivariate features
-[single_bivariate_feat] = mean(abs_bivariate_feats')';
+[single_bivariate_feat] = median(abs_bivariate_feats')';
 
 % assign previously calculated univariate z scores into bivariate scores
 all_feat_zscores = [abs(univariate_zscores), abs_bivariate_feats];
@@ -588,6 +575,29 @@ incomplete_channels = find(isnan(sum(all_feat_zscores')));
 univariate_feats = all_feat_zscores(:,1:5);
 univariate_feats(incomplete_channels,:) = [];
 %[single_univariate_feat, which_feat_uni] = max(abs(univariate_feats),[],2);
+
+%% mean Z-scores for MTL (regions 17-20) in SOZ vs IZ vs uninvolved at nodal level
+MTL_uninvolved = find([all_possible_labels(:,2)==0].*[[new_roi_2==18]+[new_roi_2==17]+[new_roi_2==19]+[new_roi_2==20]]);
+MTL_EIZ = find([all_possible_labels(:,3)==1].*[[new_roi_2==18]+[new_roi_2==17]+[new_roi_2==19]+[new_roi_2==20]]);
+MTL_SOZ = find([all_possible_labels(:,4)==1].*[[new_roi_2==18]+[new_roi_2==17]+[new_roi_2==19]+[new_roi_2==20]]);
+
+mean_uninv = single_bivariate_feat_2(MTL_uninvolved);
+mean_EIZ = single_bivariate_feat_2(MTL_EIZ);
+mean_SOZ = single_bivariate_feat_2(MTL_SOZ);
+
+plot_matrix = padcat(mean_uninv,mean_EIZ,mean_SOZ);
+figure(1);clf;
+UnivarScatter(plot_matrix)
+xticks([1:3])
+xticklabels({'uninvolved','EIZ','SOZ'})
+ylim([0 10])
+
+p1 = ranksum(mean_EIZ,mean_uninv)
+cd1 = computeCohen_d(mean_EIZ,mean_uninv)
+p2 = ranksum(mean_SOZ,mean_uninv)
+cd2 = computeCohen_d(mean_SOZ,mean_uninv)
+p3 = ranksum(mean_EIZ,mean_SOZ)
+cd3 = computeCohen_d(mean_SOZ,mean_EIZ)
 
 %% combine univariate and bivariate
 %all_feat_zscores = [univariate_zscores, all_bivariate_feats];
@@ -685,6 +695,9 @@ end
     AUC1
     AUC2
     AUC3
+    
+    Mdl3 = TreeBagger(100,all_feats,all_labels,'Method',...
+    'classification','PredictorSelection','curvature','OOBPredictorImportance','on','cost',cost);
    
 
 %% random forest feature importance
@@ -788,7 +801,7 @@ plot(this_pt_eeg(6001:12000,27))
 
 
 figure(4);clf;
-final_elec_matrix = [this_pt_coords,this_pt_res,ones(size(this_pt_res))];
+final_elec_matrix = [this_pt_coords,this_pt_abn,ones(size(this_pt_res))];
 %final_elec_matrix = final_elec_matrix([2,23,50],:)
 dlmwrite('render_elecs.node',final_elec_matrix,'delimiter',' ','precision',5)
 BrainNet_MapCfg('BrainMesh_ICBM152_smoothed.nv','render_elecs.node','abnormality_render.mat')
@@ -801,7 +814,7 @@ for s = 107:166
     pt_zscores_univar = pt_zscores(:,1:5);
     pt_zscores_bivar = pt_zscores(:,6:10);
     
-    corrval2(s-106) = corr(mean(pt_zscores_univar')',mean(pt_zscores_bivar')','Type','Spearman');
+    corrval2(s-106) = corr(pt_zscores_univar(:),pt_zscores_bivar(:),'Type','Spearman');
     
     for f = 1:5
         corrval((s-106),f) = corr(pt_zscores(:,f),pt_zscores(:,(f+5)),'Type','Spearman');
@@ -818,23 +831,16 @@ p4 = ranksum(corrval(corrval_outcome==1,4),corrval(corrval_outcome>1,4),'tail','
 p5 = ranksum(corrval(corrval_outcome==1,5),corrval(corrval_outcome>1,5),'tail','right')
 
 p6 = ranksum(corrval2(corrval_outcome==1),corrval2(corrval_outcome>1),'tail','right')
-
-p7 = ranksum(corrval(corrval_lesion==0,1),corrval(corrval_lesion>0,1),'tail','right')
-p8 = ranksum(corrval(corrval_lesion==0,2),corrval(corrval_lesion>0,2),'tail','right')
-p9 = ranksum(corrval(corrval_lesion==0,3),corrval(corrval_lesion>0,3),'tail','right')
-p10 = ranksum(corrval(corrval_lesion==0,4),corrval(corrval_lesion>0,4),'tail','right')
-p11 = ranksum(corrval(corrval_lesion==0,5),corrval(corrval_lesion>0,5),'tail','right')
-
-p12 = ranksum(corrval2(corrval_lesion==0),corrval2(corrval_lesion>0),'tail','right')
+d6 = computeCohen_d(corrval2(corrval_outcome==1),corrval2(corrval_outcome>1))
 
 
-figure(1);clf;
-plot_matrix = padcat(corrval(corrval_outcome==1,2),corrval(corrval_outcome>1,2));
+
+plot_matrix = padcat(corrval2(corrval_outcome==1)',corrval2(corrval_outcome>1)');
 figure(1);clf;
 UnivarScatter(plot_matrix)
 xticks([1,2])
 xticklabels({'Engel 1','Engel 2+'})
-ylim([-0.5 0.5])
+ylim([-0.3 0.5])
 ylabel('Correlation of beta power & coherence |Z|')
 
 %% compute AUPRC/DRS at a per-patient level
@@ -862,6 +868,7 @@ figure(1);clf;
 UnivarScatter(plot_matrix)
 
 ranksum(plot_matrix(:,1),plot_matrix(:,2))
+computeCohen_d(plot_matrix(:,1),plot_matrix(:,2))
 xticks([1,2])
 xticklabels({'Engel 1','Engel 2+'})
 ylabel('Area under precision-recall curve')
@@ -907,13 +914,6 @@ for f = 1:5
         
         plot_matrix = padcat(pred_uninvolved, pred_eiz,pred_soz);
         
-        % figure(1);clf;
-        % plot_cell{1,1} = pred_uninvolved';
-        % plot_cell{1,2} = pred_eiz';
-        % plot_cell{1,3} = pred_soz';
-        % violin(plot_cell,'xlabel',{'','',''},'facecolor',[color1;color7;color2],'mc',[],'medc','k');%,'edgecolor','k');
-        % xlim([0.5 3.5])
-        
         p1_region(f,r) = ranksum(pred_uninvolved,pred_eiz)
         p2_region(f,r) = ranksum(pred_uninvolved,pred_soz)
         p3_region(f,r) = ranksum(pred_eiz,pred_soz)
@@ -950,11 +950,11 @@ colorbar
     pt_eiz = [];
     pt_soz = [];
     
-for s = 1:166
+for s = 107:166
     
-    pt_uninvolved_inds = find([all_possible_labels(:,2)==0].*[all_possible_labels(:,1)==s].*[new_roi_2==18]);
-    pt_eiz_inds = find([all_possible_labels(:,3)==1].*[all_possible_labels(:,1)==s].*[new_roi_2==18]);
-    pt_soz_inds = find([all_possible_labels(:,4)==1].*[all_possible_labels(:,1)==s].*[new_roi_2==18]);
+    pt_uninvolved_inds = find([all_possible_labels(:,2)==0].*[all_possible_labels(:,1)==s]);%.*[[new_roi_2==18]+[new_roi_2==17]+[new_roi_2==19]+[new_roi_2==20]]);
+    pt_eiz_inds = find([all_possible_labels(:,3)==1].*[all_possible_labels(:,1)==s]);%.*[[new_roi_2==18]+[new_roi_2==17]+[new_roi_2==19]+[new_roi_2==20]]);
+    pt_soz_inds = find([all_possible_labels(:,4)==1].*[all_possible_labels(:,1)==s]);%.*[[new_roi_2==18]+[new_roi_2==17]+[new_roi_2==19]+[new_roi_2==20]]);
     
     pt_uninvolved = [pt_uninvolved; nanmean(all_pred_analysis(pt_uninvolved_inds))];
     pt_eiz = [pt_eiz; nanmean(all_pred_analysis(pt_eiz_inds))];
@@ -969,16 +969,21 @@ plot_cell{1,2} = rmmissing(pt_eiz);
 plot_cell{1,3} = rmmissing(pt_soz);
 violin(plot_cell,'xlabel',{'','',''},'facecolor',[color1;color7;color2],'mc',[],'medc','k');%,'edgecolor','k');
 xlim([0.5 3.5])
+ylim([0 1])
 
 figure(2);clf;
 UnivarScatter(plot_matrix)
 xticks([1:3])
 xticklabels({'uninvolved','irritative zone','seizure onset zone'})
 ylabel('predicted epileptogenicity score')
+ylim([0 0.8])
 
 p1 = ranksum(pt_uninvolved,pt_eiz)
+d1 = computeCohen_d(pt_uninvolved,pt_eiz)
 p2 = ranksum(pt_eiz,pt_soz)
+d2 = computeCohen_d(pt_eiz,pt_soz)
 p3 = ranksum(pt_uninvolved,pt_soz)
+d3 = computeCohen_d(pt_uninvolved,pt_soz)
 
 %% patient-level abnormality score res in/out good/poor outcome
 good_rz = [];
@@ -1006,29 +1011,40 @@ figure(2);clf;
 UnivarScatter(plot_matrix)
 %% patient-level abnormality score soz in/out lesional
 
+single_univariate_feat_2 = median(univariate_feats')';
+
 pt_in_rz = [];
 pt_out_rz = [];
 
+pt_in_rz2 = [];
+pt_out_rz2 = [];
+
 for s = 107:166
     
-    w_inds = find([all_possible_labels(:,1)==s].*[all_possible_labels(:,4)==1]);
-    o_inds = find([all_possible_labels(:,1)==s].*[all_possible_labels(:,4)==0]);
+    w_inds = find([all_possible_labels(:,1)==s])%;.*[all_possible_labels(:,4)==1]);
+    o_inds = find([all_possible_labels(:,1)==s])%;.*[all_possible_labels(:,4)==0]);
     
     length_diagnosis = age_surgery - age_onset;
     
     pt_in_rz = [pt_in_rz; nanmedian(single_bivariate_feat_2(w_inds))];
     pt_out_rz = [pt_out_rz; nanmedian(single_bivariate_feat_2(o_inds))];
+    
+    pt_in_rz2 = [pt_in_rz2; nanmedian(single_univariate_feat_2(w_inds))];
+    pt_out_rz2 = [pt_out_rz2; nanmedian(single_univariate_feat_2(o_inds))];
 
 end
 
 figure(1);clf;
 hold on
-plot(length_diagnosis, pt_out_rz,'b.','Color',[106 178 180]/255)
+plot(length_diagnosis, pt_out_rz,'b.','Color',[106 178 180]/255,'MarkerSize',12)
 p = polyfit(length_diagnosis,pt_out_rz,1);
 f = polyval(p,length_diagnosis);
 plot(length_diagnosis,f,'b-','LineWidth',2)
-[a2,b2] = corr(length_diagnosis, pt_out_rz)
-ylim([0.5 2])
+[a2,b2] = corr(length_diagnosis, pt_out_rz,'type','Pearson','tail','right')
+xlim([0 45])
+ylim([0.6 2.6])
+
+[a3,b3] = corr(length_diagnosis, pt_out_rz2,'type','Pearson','tail','right')
 
 %% Examine correlations between z scores
 [r,p] = corr(all_feat_zscores2)
@@ -1036,10 +1052,4 @@ figure(1);clf;
 r(p>0.0001) = NaN;
 imagesc(r)
 colorbar
-
-%%
-res_roi = new_roi(resect_ch_all==1);
-for i = 1:20
-    roi_count(i,1) = sum(res_roi==2*i)+sum(res_roi==(2*i-1));
-end
 
