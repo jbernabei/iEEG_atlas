@@ -1,0 +1,13 @@
+# Folder view configuration files
+.DS_Store
+Desktop.ini
+
+# Matlab files for this project that are too big
+*.mat
+
+# Plot files
+*.jpg
+*.tif
+*.ai
+*.svg
+*.zip

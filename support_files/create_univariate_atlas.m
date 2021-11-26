@@ -18,47 +18,47 @@ function [mean_vec,median_vec,std_vec,feat_vals] = create_univariate_atlas(raw_d
     median_vec = NaN(length(region_list),1);
     std_vec = NaN(length(region_list),1);
 
-    if strcmp(method,'entropy')
-        
-        % filter in order to extract desired frequency band
-        if strcmp(freq_band,'delta')
-            % bandpass filter 0.5-4 Hz
-            [b1,a1] = butter(4,[0.5 4]/(200/2));
-            filt_data = filter(b1, a1, raw_data);
-            
-        elseif strcmp(freq_band,'theta')
-            % bandpass filter 4-8 Hz
-            [b2,a2] = butter(4,[4 8]/(200/2));
-            filt_data = filter(b2, a2, raw_data);
-            
-        elseif strcmp(freq_band,'alpha')
-            % bandpass filter 8-13 Hz
-            [b3,a3] = butter(4,[8 13]/(200/2));
-            filt_data = filter(b3, a3, raw_data);
-            
-        elseif strcmp(freq_band,'beta')
-            % bandpass filter 13-30 Hz
-            [b4,a4] = butter(4,[13 30]/(200/2));
-            filt_data = filter(b4, a4, raw_data);
-            
-        elseif strcmp(freq_band,'gamma')
-            % bandpass filter 30-80 Hz
-            [b5,a5] = butter(4,[30 80]/(200/2));
-            filt_data = filter(b5, a5, raw_data);
-            
-        end
+     if strcmp(method,'entropy')
+%         
+%         % filter in order to extract desired frequency band
+%         if strcmp(freq_band,'delta')
+%             % bandpass filter 0.5-4 Hz
+%             [b1,a1] = butter(4,[0.5 4]/(200/2));
+%             filt_data = filter(b1, a1, raw_data);
+%             
+%         elseif strcmp(freq_band,'theta')
+%             % bandpass filter 4-8 Hz
+%             [b2,a2] = butter(4,[4 8]/(200/2));
+%             filt_data = filter(b2, a2, raw_data);
+%             
+%         elseif strcmp(freq_band,'alpha')
+%             % bandpass filter 8-13 Hz
+%             [b3,a3] = butter(4,[8 13]/(200/2));
+%             filt_data = filter(b3, a3, raw_data);
+%             
+%         elseif strcmp(freq_band,'beta')
+%             % bandpass filter 13-30 Hz
+%             [b4,a4] = butter(4,[13 30]/(200/2));
+%             filt_data = filter(b4, a4, raw_data);
+%             
+%         elseif strcmp(freq_band,'gamma')
+%             % bandpass filter 30-80 Hz
+%             [b5,a5] = butter(4,[30 80]/(200/2));
+%             filt_data = filter(b5, a5, raw_data);
+%             
+%         end
         
         % loop through time and channels to create entropy matrix
         for i = 1:60
-            for j = 1:size(filt_data,2)
+            for j = 1:size(raw_data,2)
                 start_inds = (i-1)*200+1;
                 end_inds = 200*i;
-                all_wentropy(i,j) = wentropy(filt_data((start_inds:end_inds),j),'shannon');
+                all_wentropy(i,j) = wentropy(raw_data((start_inds:end_inds),j),'shannon');
             end
         end
         
         % take median of each channel's entropy across time
-        feat_vals = median(real(log(all_wentropy)))';
+        feat_vals = median(real(log(-1*all_wentropy)))';
         
     elseif strcmp(method,'bandpower')
         
