@@ -116,13 +116,13 @@ spike_thresh = 24; % this is empirical, 1 spike/hour
 spike_ind = [spike_24h>spike_thresh];
 
 % define all abnormal channels
-abnormal_ch = find([spike_ind+soz_ch+(HUP_outcome_all>1)]>0)+1772;
+abnormal_ch = find([spike_ind+soz_ch+resected_ch+(HUP_outcome_all>1)]>0)+1772; % w/o resected ch
 
 % define all seizure onset indices
 soz_ch_inds = find(soz_ch)+1772;
 
 % define normal HUP channels
-normal_HUP_ch = find([spike_ind+soz_ch+(HUP_outcome_all>1)]==0)+1772;
+normal_HUP_ch = find([spike_ind+soz_ch+resected_ch+(HUP_outcome_all>1)]==0)+1772; % w/o resected ch
 
 % define normal MNI channels
 normal_MNI_ch = [1:1772]';
@@ -169,27 +169,6 @@ title('Composite regions')
 yticks([1:21])
 yticklabels(split_roi_name)
 xlabel('Number of nodes per region')
-
-%% do renderings of original and new atlas
-random_colors = rand([40,3]);
-
-color_matrix = ones(117,3);
-
-for i = 1:40
-    this_region = custom_atlas{i,2:4};
-    for r = 1:length(rmmissing(this_region))
-        color_matrix(this_region(r),:) = random_colors(i,:);
-    end
-end
-
-% writes a file that can be used in BrainNet viewer to visualize 
-dlmwrite('atlas_render_color.txt',color_matrix(1:90,:),'delimiter',' ','precision',5)
-
-figure(1);clf;
-imagesc(reshape(random_colors,40,1,3))
-set(gca,'TickLabelInterpreter', 'none');
-yticks([1:40])
-yticklabels(custom_atlas{:,1})
 
 %% calculate power spectrum
 all_wake_data = [Data_W,wake_clip];
@@ -373,6 +352,95 @@ for i = 1:20
     
 end
 
+%% do paired boxplot of channel-wise and patient-wise distributions for 
+% one MTL and one cortical activity
+activity_pt_1 = [];
+activity_ch_1 = [];
+activity_pt_2 = [];
+activity_ch_2 = [];
+activity_pt_3 = [];
+activity_ch_3 = [];
+
+for s = 1:166
+    chs_1 = find([all_pts==s].*([new_roi==17]+[new_roi==18]));
+    chs_2 = find([all_pts==s].*([new_roi==37]+[new_roi==38]));
+    chs_3 = find([all_pts==s].*([new_roi==7]+[new_roi==8]));
+    
+    pt1 = [mean(mean(pxx_norm(1:8,chs_1))),mean(mean(pxx_norm(9:16,chs_1))),mean(mean(pxx_norm(17:26,chs_1))),mean(mean(pxx_norm(27:60,chs_1))),mean(mean(pxx_norm(61:160,chs_1)))];
+    ch1 = [mean(pxx_norm(1:8,chs_1))',mean(pxx_norm(9:16,chs_1))',mean(pxx_norm(17:26,chs_1))',mean(pxx_norm(27:60,chs_1))',mean(pxx_norm(61:160,chs_1))'];
+    pt2 = [mean(mean(pxx_norm(1:8,chs_2))),mean(mean(pxx_norm(9:16,chs_2))),mean(mean(pxx_norm(17:26,chs_2))),mean(mean(pxx_norm(27:60,chs_2))),mean(mean(pxx_norm(61:160,chs_2)))];
+    ch2 = [mean(pxx_norm(1:8,chs_2))',mean(pxx_norm(9:16,chs_2))',mean(pxx_norm(17:26,chs_2))',mean(pxx_norm(27:60,chs_2))',mean(pxx_norm(61:160,chs_2))'];
+    pt3 = [mean(mean(pxx_norm(1:8,chs_3))),mean(mean(pxx_norm(9:16,chs_3))),mean(mean(pxx_norm(17:26,chs_3))),mean(mean(pxx_norm(27:60,chs_3))),mean(mean(pxx_norm(61:160,chs_3)))];
+    ch3 = [mean(pxx_norm(1:8,chs_3))',mean(pxx_norm(9:16,chs_3))',mean(pxx_norm(17:26,chs_3))',mean(pxx_norm(27:60,chs_3))',mean(pxx_norm(61:160,chs_3))'];
+    
+    try activity_pt_1 = [activity_pt_1; pt1];
+    catch
+    end
+    
+    try activity_ch_1 = [activity_ch_1; ch1];
+    catch 
+    end
+    
+    try activity_pt_2 = [activity_pt_2; pt2];
+    catch 
+    end
+    
+    try activity_ch_2 = [activity_ch_2; ch2];
+    catch
+    end
+    
+    try activity_pt_3 = [activity_pt_3; pt3];
+    catch 
+    end
+    
+    try activity_ch_3 = [activity_ch_3; ch3];
+    catch
+    end
+    
+end
+
+colors = [color1; color2; color1; color2; color1; color2; color1; color2; color1; color2];
+
+plot_data1 = padcat(activity_pt_1(:,1),activity_ch_1(:,1),activity_pt_1(:,2),activity_ch_1(:,2),activity_pt_1(:,3),activity_ch_1(:,3),activity_pt_1(:,4),activity_ch_1(:,4),activity_pt_1(:,5),activity_ch_1(:,5));
+plot_data2 = padcat(activity_pt_2(:,1),activity_ch_2(:,1),activity_pt_2(:,2),activity_ch_2(:,2),activity_pt_2(:,3),activity_ch_2(:,3),activity_pt_2(:,4),activity_ch_2(:,4),activity_pt_2(:,5),activity_ch_2(:,5));
+plot_data3 = padcat(activity_pt_3(:,1),activity_ch_3(:,1),activity_pt_3(:,2),activity_ch_3(:,2),activity_pt_3(:,3),activity_ch_3(:,3),activity_pt_3(:,4),activity_ch_3(:,4),activity_pt_3(:,5),activity_ch_3(:,5));
+
+figure(1);clf;
+subplot(1,3,1)
+boxplot(plot_data1)
+
+h = findobj(gca,'Tag','Box');
+for j=1:length(h)
+    patch(get(h(j),'XData'),get(h(j),'YData'),colors(j,:),'FaceAlpha',.5);
+end
+
+xticks([1.5 3.5 5.5 7.5 9.5])
+xticklabels({'delta','theta','alpha','beta','gamma'})
+ylabel('Normalized spectral density')
+
+subplot(1,3,2)
+boxplot(plot_data2)
+
+h = findobj(gca,'Tag','Box');
+for j=1:length(h)
+    patch(get(h(j),'XData'),get(h(j),'YData'),colors(j,:),'FaceAlpha',.5);
+end
+
+xticks([1.5 3.5 5.5 7.5 9.5])
+xticklabels({'delta','theta','alpha','beta','gamma'})
+ylabel('Normalized spectral density')
+
+subplot(1,3,3)
+boxplot(plot_data3)
+
+h = findobj(gca,'Tag','Box');
+for j=1:length(h)
+    patch(get(h(j),'XData'),get(h(j),'YData'),colors(j,:),'FaceAlpha',.5);
+end
+
+xticks([1.5 3.5 5.5 7.5 9.5])
+xticklabels({'delta','theta','alpha','beta','gamma'})
+ylabel('Normalized spectral density')
 %% calculate univariate z-scores of neural activity
 % power spectrum and entropy abnormality
 
@@ -488,6 +556,8 @@ for c = 1
 
         [conn_edge, std_edge, samples_edge, sem_edge, raw_atlas_edge] = create_atlas_by_edge(all_pt_adj, pt_loc, all_abn, [1:40]', 2);
         
+        [median_conn, std_conn, num_samples, sem_conn, raw_atlas] = create_atlas(all_pt_adj, pt_loc, all_abn, [1:40]', 2);
+        
         % call for MNI patients
         [conn_edge_mni, std_edge_mni, samples_edge_mni, ~, raw_atlas_edge_mni] = create_atlas_by_edge(all_pt_adj(1:106), pt_loc(1:106), all_abn(1:106), [1:40]', 1);
         
@@ -496,6 +566,9 @@ for c = 1
 
         this_feat_conn(feat).mni = conn_edge_mni;
         this_feat_conn(feat).hup = conn_edge_hup;
+        
+        all_raw_atlas_edge{f} = raw_atlas_edge;
+        all_raw_atlas{f} = raw_atlas;
         
         % loop through all patients
         for s = 1:166 % change this back
@@ -515,19 +588,94 @@ for c = 1
     
 end
 
+
+%% do paired boxplot of channel-wise and patient-wise distributions for 
+% one MTL and one cortical connectivity
+conn_pt_1 = -1.*log([rmmissing(squeeze(all_raw_atlas{1}(36,40,:))),rmmissing(squeeze(all_raw_atlas{2}(36,40,:))),rmmissing(squeeze(all_raw_atlas{3}(36,40,:))),rmmissing(squeeze(all_raw_atlas{4}(36,40,:))),rmmissing(squeeze(all_raw_atlas{5}(36,40,:)))])
+conn_ch_1 = -1.*log([rmmissing(squeeze(all_raw_atlas_edge{1}(36,40,:))),rmmissing(squeeze(all_raw_atlas_edge{2}(36,40,:))),rmmissing(squeeze(all_raw_atlas_edge{3}(36,40,:))),rmmissing(squeeze(all_raw_atlas_edge{4}(36,40,:))),rmmissing(squeeze(all_raw_atlas_edge{5}(36,40,:)))])
+
+conn_pt_2 = -1.*log([rmmissing(squeeze(all_raw_atlas{1}(5,37,:))),rmmissing(squeeze(all_raw_atlas{2}(5,37,:))),rmmissing(squeeze(all_raw_atlas{3}(5,37,:))),rmmissing(squeeze(all_raw_atlas{4}(5,37,:))),rmmissing(squeeze(all_raw_atlas{5}(5,37,:)))])
+conn_ch_2 = -1.*log([rmmissing(squeeze(all_raw_atlas_edge{1}(5,37,:))),rmmissing(squeeze(all_raw_atlas_edge{2}(5,37,:))),rmmissing(squeeze(all_raw_atlas_edge{3}(5,37,:))),rmmissing(squeeze(all_raw_atlas_edge{4}(5,37,:))),rmmissing(squeeze(all_raw_atlas_edge{5}(5,37,:)))])
+
+conn_pt_3 = -1.*log([rmmissing(squeeze(all_raw_atlas{1}(4,8,:))),rmmissing(squeeze(all_raw_atlas{2}(4,8,:))),rmmissing(squeeze(all_raw_atlas{3}(4,8,:))),rmmissing(squeeze(all_raw_atlas{4}(4,8,:))),rmmissing(squeeze(all_raw_atlas{5}(4,8,:)))])
+conn_ch_3 = -1.*log([rmmissing(squeeze(all_raw_atlas_edge{1}(4,8,:))),rmmissing(squeeze(all_raw_atlas_edge{2}(4,8,:))),rmmissing(squeeze(all_raw_atlas_edge{3}(4,8,:))),rmmissing(squeeze(all_raw_atlas_edge{4}(4,8,:))),rmmissing(squeeze(all_raw_atlas_edge{5}(4,8,:)))])
+
+plot_data1 = padcat(conn_pt_1(:,1),conn_ch_1(:,1),conn_pt_1(:,2),conn_ch_1(:,2),conn_pt_1(:,3),conn_ch_1(:,3),conn_pt_1(:,4),conn_ch_1(:,4),conn_pt_1(:,5),conn_ch_1(:,5));
+plot_data2 = padcat(conn_pt_2(:,1),conn_ch_2(:,1),conn_pt_2(:,2),conn_ch_2(:,2),conn_pt_2(:,3),conn_ch_1(:,3),conn_pt_2(:,4),conn_ch_2(:,4),conn_pt_2(:,5),conn_ch_2(:,5));
+plot_data3 = padcat(conn_pt_3(:,1),conn_ch_3(:,1),conn_pt_3(:,2),conn_ch_3(:,2),conn_pt_3(:,3),conn_ch_1(:,3),conn_pt_3(:,4),conn_ch_3(:,4),conn_pt_3(:,5),conn_ch_3(:,5));
+
+figure(1);clf;
+subplot(1,3,1)
+boxplot(plot_data1)
+
+h = findobj(gca,'Tag','Box');
+for j=1:length(h)
+    patch(get(h(j),'XData'),get(h(j),'YData'),colors(j,:),'FaceAlpha',.5);
+end
+
+xticks([1.5 3.5 5.5 7.5 9.5])
+xticklabels({'delta','theta','alpha','beta','gamma'})
+ylabel('Negative log coherence')
+
+
+subplot(1,3,2)
+boxplot(plot_data2)
+
+h = findobj(gca,'Tag','Box');
+for j=1:length(h)
+    patch(get(h(j),'XData'),get(h(j),'YData'),colors(j,:),'FaceAlpha',.5);
+end
+
+xticks([1.5 3.5 5.5 7.5 9.5])
+xticklabels({'delta','theta','alpha','beta','gamma'})
+ylabel('Negative log coherence')
+
+
+subplot(1,3,3)
+boxplot(plot_data3)
+
+h = findobj(gca,'Tag','Box');
+for j=1:length(h)
+    patch(get(h(j),'XData'),get(h(j),'YData'),colors(j,:),'FaceAlpha',.5);
+end
+
+xticks([1.5 3.5 5.5 7.5 9.5])
+xticklabels({'delta','theta','alpha','beta','gamma'})
+ylabel('Negative log coherence')
+
+
+num_samples2 = samples_edge;
+for i = 1:40
+    num_samples2(i,i) = 0;
+end
+
+figure(2);clf
+subplot(2,2,1)
+imagesc(num_samples)
+colorbar
+subplot(2,2,2)
+imagesc(num_samples2)
+colorbar
+subplot(2,2,3)
+histogram(num_samples(:))
+subplot(2,2,4)
+histogram(num_samples2(:))
 %% process bivariate edge features into nodal features
 
 for f = 1:5
     this_feat = [];
     abs_feat = [];
+    bivariate_feat = [];
     for s = 1:166
         % take 75th percentile across all edges of each node
         %abs_feat = [abs_feat;prctile(abs(bivariate_native(f).subj(s).data),75)'];
-        abs_feat = [abs_feat;prctile(abs(bivariate_native(f).subj(s).data),75)']; % test with 50th percentile
+        abs_feat = [abs_feat;prctile(abs(bivariate_native(f).subj(s).data),100)']; % test with 50th percentile
+        bivariate_feat = [bivariate_feat;prctile(bivariate_native(f).subj(s).data,75)'];
     end
     
     % assign into feature matrix
     abs_bivariate_feats(:,f) = abs_feat;
+    non_abs_bivariate_feats(:,f) = bivariate_feat;
 end
 
 % for the single bivariate feature we want the maximum absolute Z score
@@ -535,7 +683,8 @@ end
 [single_bivariate_feat] = median(abs_bivariate_feats')';
 
 % assign previously calculated univariate z scores into bivariate scores
-all_feat_zscores = [abs(univariate_zscores), abs_bivariate_feats];
+all_feat_zscores = [abs(univariate_zscores), abs_bivariate_feats]; %% original
+%all_feat_zscores = [univariate_zscores, non_abs_bivariate_feats];
 
 % incomplete channels are ones which are unlocalized in new atlas
 incomplete_channels = find(isnan(sum(all_feat_zscores')));
@@ -546,7 +695,7 @@ univariate_feats(incomplete_channels,:) = [];
 %[single_univariate_feat, which_feat_uni] = max(abs(univariate_feats),[],2);
 
 
-%% combine univariate and bivariate
+%% Figure 6A: combine univariate and bivariate
 %all_feat_zscores = [univariate_zscores, all_bivariate_feats];
 all_feat_zscores(isinf(all_feat_zscores)) = 0;
 incomplete_channels = find(isnan(sum(all_feat_zscores')));
@@ -648,7 +797,7 @@ end
     'classification','PredictorSelection','curvature','OOBPredictorImportance','on','cost',cost);
    
 
-%% random forest feature importance
+%% Figure 6B: random forest feature importance
 imp = Mdl3.OOBPermutedPredictorDeltaError;
 
 figure(1);clf;
@@ -667,7 +816,7 @@ xlabel('False positive rate')
 ylabel('True positive rate')
 title('All abnormal vs. normal channel classification')
 
-%% mean Z-scores for MTL (regions 17-20) in SOZ vs IZ vs uninvolved at nodal level
+%% Figure 5A: mean Z-scores for MTL (regions 17-20) in SOZ vs IZ vs uninvolved
 new_roi_2 = new_roi;
 new_roi_2(incomplete_channels) = [];
 
@@ -820,8 +969,6 @@ p5 = ranksum(corrval(corrval_outcome==1,5),corrval(corrval_outcome>1,5),'tail','
 p6 = ranksum(corrval2(corrval_outcome==1),corrval2(corrval_outcome>1),'tail','right')
 d6 = computeCohen_d(corrval2(corrval_outcome==1),corrval2(corrval_outcome>1))
 
-
-
 plot_matrix = padcat(corrval2(corrval_outcome==1)',corrval2(corrval_outcome>1)');
 figure(1);clf;
 UnivarScatter(plot_matrix);
@@ -830,7 +977,7 @@ xticklabels({'Engel 1','Engel 2+'})
 ylim([-0.3 0.5])
 ylabel('Correlation of beta power & coherence |Z|')
 
-%% compute AUPRC/DRS at a per-patient level
+%% Figure 5C: compute AUPRC/DRS at a per-patient level
 a = 0;
 for s = [107:127,128:132,134:139,141:155,157:161,163:166]
     s
@@ -860,48 +1007,18 @@ xticks([1,2])
 xticklabels({'Engel 1','Engel 2+'})
 ylabel('Area under precision-recall curve')
 title('Comparison between AUPRC, rank-sum p = 0.033')
-%% compute AUC at a per-patient level
-a = 0;
-for s = [107:127,128:132,134:139,141:155,157:161,163:166]
-    s
-    a = a+1;
-    this_pt_label = all_possible_labels(find(all_possible_labels(:,1)==s),4);
-    this_pt_pred = all_pred_analysis(find(all_possible_labels(:,1)==s));
-    this_pt_pred2 = all_pred_analysis2(find(all_possible_labels(:,1)==s));
-    this_pt_pred3 = all_pred_analysis3(find(all_possible_labels(:,1)==s));
-    [X1,Y1,T,AUC1] = perfcurve(this_pt_label,this_pt_pred,1);  
-    [X2,Y2,T,AUC2] = perfcurve(this_pt_label,this_pt_pred2,1);
-    [X3,Y3,T,AUC3] = perfcurve(this_pt_label,this_pt_pred3,1);
-    
-    auc_pt_outcome(a,1) = late_outcome(s-106);
-    pt_auc(a,1:3) = [AUC1,AUC2,AUC3];
-end
+%% Figure 6C: patient-level abnormality score all regions
 
-good_inds = find(auc_pt_outcome==1);
-poor_inds = find(auc_pt_outcome>1);
+pt_uninvolved = [];
+pt_eiz = [];
+pt_soz = [];
 
-plot_matrix = padcat(pt_auc(good_inds,1),pt_auc(poor_inds,1));
-figure(1);clf;
-UnivarScatter(plot_matrix)
-
-ranksum(plot_matrix(:,1),plot_matrix(:,2))
-computeCohen_d(plot_matrix(:,1),plot_matrix(:,2))
-xticks([1,2])
-xticklabels({'Engel 1','Engel 2+'})
-ylabel('Area under precision-recall curve')
-title('Comparison between AUPRC, rank-sum p = 0.033')
-
-%% patient-level abnormality score all regions
-
-    pt_uninvolved = [];
-    pt_eiz = [];
-    pt_soz = [];
-    
+% loop through HUP patients
 for s = 107:166
     
-    pt_uninvolved_inds = find([all_possible_labels(:,2)==0].*[all_possible_labels(:,1)==s]);%.*[[new_roi_2==18]+[new_roi_2==17]+[new_roi_2==19]+[new_roi_2==20]]);
-    pt_eiz_inds = find([all_possible_labels(:,3)==1].*[all_possible_labels(:,1)==s]);%.*[[new_roi_2==18]+[new_roi_2==17]+[new_roi_2==19]+[new_roi_2==20]]);
-    pt_soz_inds = find([all_possible_labels(:,4)==1].*[all_possible_labels(:,1)==s]);%.*[[new_roi_2==18]+[new_roi_2==17]+[new_roi_2==19]+[new_roi_2==20]]);
+    pt_uninvolved_inds = find([all_possible_labels(:,2)==0].*[all_possible_labels(:,1)==s]);
+    pt_eiz_inds = find([all_possible_labels(:,3)==1].*[all_possible_labels(:,1)==s]);
+    pt_soz_inds = find([all_possible_labels(:,4)==1].*[all_possible_labels(:,1)==s]);
     
     pt_uninvolved = [pt_uninvolved; nanmean(all_pred_analysis(pt_uninvolved_inds))];
     pt_eiz = [pt_eiz; nanmean(all_pred_analysis(pt_eiz_inds))];
@@ -924,7 +1041,7 @@ d2 = computeCohen_d(pt_eiz,pt_soz)
 p3 = ranksum(pt_uninvolved,pt_soz)
 d3 = computeCohen_d(pt_uninvolved,pt_soz)
 
-%% correlation length of diagnosis
+%% Figure 5B: correlation length of diagnosis
 
 single_univariate_feat_2 = median(univariate_feats')';
 
@@ -941,9 +1058,11 @@ for s = 107:166
     
     length_diagnosis = age_surgery - age_onset;
     
+    % bivariate features
     pt_in_rz = [pt_in_rz; nanmedian(single_bivariate_feat_2(w_inds))];
     pt_out_rz = [pt_out_rz; nanmedian(single_bivariate_feat_2(o_inds))];
     
+    % univariate features
     pt_in_rz2 = [pt_in_rz2; nanmedian(single_univariate_feat_2(w_inds))];
     pt_out_rz2 = [pt_out_rz2; nanmedian(single_univariate_feat_2(o_inds))];
 
@@ -1002,7 +1121,9 @@ for freq = 1:5
     freq_corr(freq) = corr(freq_feats1(freq,:)',freq_feats2(freq,:)')
 end
 
-%%
+%% check connectivity from clips 2 and 3
+
+%% correlate power spectral density in three patients
 % pts = [34, 38, 44, 49, 60];
 load AED_recordings.mat
 figure(1);clf
@@ -1041,11 +1162,11 @@ for pt = [1,2,4]
     for freq = 1:5
         a = a+1;
     subplot(3,5,a)
-    plot(freq_data_pt(2,:,freq),freq_data_pt(4,:,freq),'ko')
+    plot(freq_data_pt(2,:,freq),freq_data_pt(4,:,freq),'k.')
         [RHO,PVAL] = corr(freq_data_pt(2,:,freq)',freq_data_pt(4,:,freq)','type','Pearson');
          pvals(freq,pt) = PVAL;
          rhovals(freq,pt) = RHO;
-         title(sprintf('pval = %.2f, rho = %.2f',PVAL,RHO))
+         title(sprintf('p = %.1d, R = %.2f',PVAL,RHO))
     end
     
 end
@@ -1075,23 +1196,21 @@ end
 
 m = 1
     
-%%
+%% correlate connectivity in three patients
 figure(1);clf;
 a = 0;
 for pt = [1,2,4]
     for freq = 1:5
-        matrix1 = AED_conn(pt).freq(freq).data(:,:,2);
-        matrix2 = AED_conn(pt).freq(freq).data(:,:,4);
+        matrix1 = -1.*log(AED_conn(pt).freq(freq).data(:,:,2));
+        matrix2 = -1.*log(AED_conn(pt).freq(freq).data(:,:,4));
         
         a = a+1;
         subplot(3,5,a)
-        plot(matrix1(:),matrix2(:),'ko')
-        xlim([0,0.5])
-        ylim([0,0.5])
+        plot(matrix1(:),matrix2(:),'k.')
         [RHO,PVAL] = corr(matrix1(:),matrix2(:),'type','Pearson');
         pvals_conn(freq,pt) = PVAL;
         rhovals_conn(freq,pt) = RHO;
-        title(sprintf('pval = %.2f, rho = %.2f',PVAL,RHO))
+        title(sprintf('p = %.1d, R = %.2f',PVAL,RHO))
     end
 end
     

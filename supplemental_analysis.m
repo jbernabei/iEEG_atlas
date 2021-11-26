@@ -144,3 +144,35 @@ end
 plot_matrix = padcat(good_rz,good_out,poor_rz,poor_out);
 figure(2);clf;
 UnivarScatter(plot_matrix)
+
+%% compute AUC at a per-patient level
+a = 0;
+for s = [107:127,128:132,134:139,141:155,157:161,163:166]
+    s
+    a = a+1;
+    this_pt_label = all_possible_labels(find(all_possible_labels(:,1)==s),4);
+    this_pt_pred = all_pred_analysis(find(all_possible_labels(:,1)==s));
+    this_pt_pred2 = all_pred_analysis2(find(all_possible_labels(:,1)==s));
+    this_pt_pred3 = all_pred_analysis3(find(all_possible_labels(:,1)==s));
+    [X1,Y1,T,AUC1] = perfcurve(this_pt_label,this_pt_pred,1);  
+    [X2,Y2,T,AUC2] = perfcurve(this_pt_label,this_pt_pred2,1);
+    [X3,Y3,T,AUC3] = perfcurve(this_pt_label,this_pt_pred3,1);
+    
+    auc_pt_outcome(a,1) = late_outcome(s-106);
+    pt_auc(a,1:3) = [AUC1,AUC2,AUC3];
+end
+
+good_inds = find(auc_pt_outcome==1);
+poor_inds = find(auc_pt_outcome>1);
+
+plot_matrix = padcat(pt_auc(good_inds,1),pt_auc(poor_inds,1));
+figure(1);clf;
+UnivarScatter(plot_matrix)
+
+ranksum(plot_matrix(:,1),plot_matrix(:,2))
+computeCohen_d(plot_matrix(:,1),plot_matrix(:,2))
+xticks([1,2])
+xticklabels({'Engel 1','Engel 2+'})
+ylabel('Area under precision-recall curve')
+title('Comparison between AUPRC, rank-sum p = 0.033')
+

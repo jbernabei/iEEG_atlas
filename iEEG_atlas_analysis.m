@@ -43,7 +43,7 @@ lesion_field = strcmp(lesion_field,'Lesional'); % 1 for lesional
 therapy_field = strcmp(therapy_field,'Ablation'); % 1 ffor ablation
 
 load('data/MNI_atlas_new.mat')
-load('data/HUP_atlas_May25.mat')
+load('data/HUP_atlas_final.mat')
 
 all_pts = [Patient; (patient_no+106)]; % combine patient numbers for MNI & HUP
 
@@ -553,7 +553,7 @@ for f = 1:5
     this_feat = [];
     abs_feat = [];
     for s = 1:166
-        % take 80th percentile across all edges of each node
+        % take 75th percentile across all edges of each node
         abs_feat = [abs_feat;prctile(abs(bivariate_native(f).subj(s).data),75)'];
     end
     
@@ -841,7 +841,7 @@ UnivarScatter(plot_matrix)
 xticks([1,2])
 xticklabels({'Engel 1','Engel 2+'})
 ylim([-0.3 0.5])
-ylabel('Correlation of beta power & coherence |Z|')
+%ylabel('Correlation of beta power & coherence |Z|')
 
 %% compute AUPRC/DRS at a per-patient level
 a = 0;
@@ -863,7 +863,7 @@ end
 good_inds = find(auc_pt_outcome==1);
 poor_inds = find(auc_pt_outcome>1);
 
-plot_matrix = padcat(pt_auc(good_inds,1),pt_auc(poor_inds,1));
+plot_matrix = padcat(pt_auc(good_inds,3),pt_auc(poor_inds,3));
 figure(1);clf;
 UnivarScatter(plot_matrix)
 
@@ -872,7 +872,7 @@ computeCohen_d(plot_matrix(:,1),plot_matrix(:,2))
 xticks([1,2])
 xticklabels({'Engel 1','Engel 2+'})
 ylabel('Area under precision-recall curve')
-title('Comparison between AUPRC, rank-sum p = 0.033')
+%title('Comparison between AUPRC, rank-sum p = 0.033')
 
 %%
 [single_univariate_feat, which_feat_uni] = max(all_feat_zscores(:,1:5),[],2);
