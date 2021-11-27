@@ -428,13 +428,10 @@ for m = 1 % m for different metrics
     end
 end
 
-%save('univariate_zscores.mat','univariate_zscores')
+save('univariate_zscores.mat','univariate_zscores')
 
 
 %% create atlas data - > edge-wise and patient-wise should be options
-% for HUP data, aggregate electrodes to ignore 
-% these should be poor-outcome/RZ/SOZ/>1 spike per hour
-
 conn_band = {'delta','theta','alpha','beta','gamma'};
 conn_type = {'coh'};
 
@@ -480,6 +477,10 @@ for c = 1
         
         load(sprintf('adj_matrices/all_adj_%s_%s_May25.mat',conn_type{c},conn_band{f}));
 
+        for s = 1:166
+        all_pt_adj{s} = -1*log(all_pt_adj{s});
+        end
+        
         [conn_edge, std_edge, samples_edge, sem_edge, raw_atlas_edge] = create_atlas_by_edge(all_pt_adj, pt_loc, all_abn, [1:40]', 2);
         
         % call for MNI patients
@@ -516,8 +517,7 @@ for f = 1:5
     abs_feat = [];
     for s = 1:166
         % take 75th percentile across all edges of each node
-        %abs_feat = [abs_feat;prctile(abs(bivariate_native(f).subj(s).data),75)'];
-        abs_feat = [abs_feat;prctile(abs(bivariate_native(f).subj(s).data),75)']; % test with 50th percentile
+        abs_feat = [abs_feat;prctile(abs(bivariate_native(f).subj(s).data),75)']; 
     end
     
     % assign into feature matrix
@@ -670,9 +670,9 @@ xticks([1:10])
 
 figure(2);clf;
 hold on
-plot(X1,Y1,'LineWidth',2,'Color',color4)%4
-plot(X2,Y2,'LineWidth',2,'Color',color7)%7
-plot(X3,Y3,'LineWidth',2,'Color',color1)%10
+plot(X1,Y1,'LineWidth',2,'Color',color4)
+plot(X2,Y2,'LineWidth',2,'Color',color7)
+plot(X3,Y3,'LineWidth',2,'Color',color1)%
 legend(sprintf('Univariate  - AUC: %.2f',AUC1),sprintf('Bivariate  - AUC: %.2f',AUC2),sprintf('All - AUC: %.2f',AUC3),'Location','SouthEast')%86/85/91
 xlabel('False positive rate')
 ylabel('True positive rate')
