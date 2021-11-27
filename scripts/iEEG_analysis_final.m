@@ -5,7 +5,7 @@ clear all
 iEEG_atlas_path = '/Users/jbernabei/Documents/PhD_Research/atlas_project/iEEG_atlas_dev';
 
 % other paths may stay the same
-metadata = readtable('data/atlas_metadata_final.xlsx');
+metadata = readtable('data/atlas_metadata_simplified.xlsx');
 custom_atlas = readtable('data/custom_atlas.xlsx');
 
 % anatomical atlas information
@@ -419,7 +419,7 @@ for m = 1 % m for different metrics
         [~,~,~,feat_vals] = create_univariate_atlas(all_wake_data,[1:40],new_roi,sprintf('%s',all_m{m}),sprintf('%s',all_f{f}));
         
         % now we test the univariate atlas to generate z scores
-        [zscores, pt_zscores, pt_ind, roi_ind] = test_univariate_atlas(median_vec, std_vec, feat_vals, all_pts, [1:40], new_roi,'patient');
+        [zscores, pt_zscores, pt_ind, roi_ind] = test_univariate_atlas(median_vec, std_vec, feat_vals, all_pts, [1:40], new_roi, 'patient');
         
         % store the z scores
         univariate_zscores(:,c) = zscores;
@@ -453,10 +453,6 @@ for c = 1
             all_pt_adj{s} = pt_adj;
 
         end
-
-        % save adjacency matrices
-        %save(sprintf('adj_matrices_rev2/all_adj_%s_%s_May25.mat',conn_type{c},conn_band{f}),'all_pt_adj')
-        
     end
 end
 
@@ -475,11 +471,7 @@ for c = 1
         feat = feat+1;
         a = 0
         
-        load(sprintf('adj_matrices/all_adj_%s_%s_May25.mat',conn_type{c},conn_band{f}));
-
-        for s = 1:166
-        all_pt_adj{s} = -1*log(all_pt_adj{s});
-        end
+        load(sprintf('data/adj_matrices/all_adj_%s_%s_May25.mat',conn_type{c},conn_band{f}));
         
         [conn_edge, std_edge, samples_edge, sem_edge, raw_atlas_edge] = create_atlas_by_edge(all_pt_adj, pt_loc, all_abn, [1:40]', 2);
         
@@ -942,6 +934,7 @@ plot(length_diagnosis,f,'b-','LineWidth',2)
 [R,P] = corr(length_diagnosis, pt_out_rz,'type','Pearson','tail','right')
 
 %% calculate spectral density differences between dataset 2 and dataset 3
+% revision -> for supplement
 
 load extra_data_1
 extra1_wake = wake_clip;
@@ -982,7 +975,8 @@ for freq = 1:5
     freq_corr(freq) = corr(freq_feats1(freq,:)',freq_feats2(freq,:)')
 end
 
-%%
+%% AED recording level analysis for a few patients
+% revision -> for supplement
 
 load AED_recordings.mat
 figure(1);clf
@@ -1034,6 +1028,8 @@ for pt = [1,2,4]
 end
 
 %% do a connectivity calculation here
+% for AED analysis -> supplement
+
 conn_band = {'delta','theta','alpha','beta','gamma'};
 
 for pt = 5
@@ -1058,7 +1054,9 @@ end
 
 m = 1
     
-%%
+%% 
+% for AED analysis -> supplement
+
 figure(1);clf;
 a = 0;
 for pt = [1,2,4]
@@ -1082,6 +1080,7 @@ for pt = [1,2,4]
 end
     
 %% correlate feature space
+% for AED analysis -> supplement
 
 load('zscores_complete_rev1.mat')
 zscores_complete_rev1 = zscores_complete;
@@ -1106,6 +1105,7 @@ xticklabels({'delta','theta','alpha','beta','gamma','delta','theta','alpha','bet
 ylabel('Correlation')
 
 %% correlate predicted epileptogenicity
+% for AED analysis -> supplement
 
 load('all_pred3_rev1.mat')
 all_pred3_rev1 = all_pred3;
@@ -1128,6 +1128,8 @@ ylabel('Number of subjects')
 %histogram(dataset_pred_corr_p)
 
 %%
+% for AED analysis -> supplement
+
 figure(1);clf;
 hold on
 plot(this_thresh,thresh_auc_abs,'b--o','LineWidth',1,'Color',color1,'MarkerSize',8,'MarkerEdgeColor',color1,'MarkerFaceColor',color1)

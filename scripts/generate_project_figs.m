@@ -10,7 +10,7 @@ load('bivariate_zscores.mat')
 iEEG_atlas_path = '/Users/jbernabei/Documents/PhD_Research/atlas_project/iEEG_atlas_dev';
 
 % other paths may stay the same
-metadata = readtable('data/atlas_metadata_final.xlsx');
+metadata = readtable('data/atlas_metadata_simplified.xlsx');
 custom_atlas = readtable('data/custom_atlas.xlsx');
 
 % anatomical atlas information
@@ -342,7 +342,7 @@ for i = 1:20
     
 end
 
-%% process bivariate edge features into nodal features
+% process bivariate edge features into nodal features
 
 for f = 1:5
     this_feat = [];
@@ -492,13 +492,13 @@ end
 % random forest feature importance
 imp = Mdl3.OOBPermutedPredictorDeltaError;
 
-figure(1);clf;
+figure(3);clf;
 bar(imp);
 title('Curvature Test');
 ylabel('Predictor importance estimates');
 xticks([1:10])
 
-figure(2);clf;
+figure(4);clf;
 hold on
 plot(X1,Y1,'LineWidth',2,'Color',color4)
 plot(X2,Y2,'LineWidth',2,'Color',color7)
@@ -535,7 +535,7 @@ mean_EIZ = MTL_EIZ;
 mean_SOZ = MTL_SOZ;
 
 plot_matrix = padcat(mean_uninv,mean_EIZ,mean_SOZ);
-figure(3);clf;
+figure(5);clf;
 UnivarScatter(plot_matrix)
 xticks([1:3])
 xticklabels({'uninvolved','EIZ','SOZ'})
@@ -579,7 +579,7 @@ this_pt_zscores = all_feat_zscores(find(all_pts==this_pt),:);
 this_pt_test = zeros(size(this_pt_res));
 this_pt_test([28,9,49])=1;
 
-figure(2);clf;
+figure(6);clf;
 subplot(1,3,1)
 imagesc(this_pt_zscores(28,:)')
 caxis([0,3])
@@ -599,7 +599,7 @@ colormap('jet')
 colorbar
 colorbar
 % 
-figure(3);
+figure(7);
 subplot(3,1,1)
 plot(this_pt_eeg(6001:12000,4))
 subplot(3,1,2)
@@ -608,7 +608,7 @@ subplot(3,1,3)
 plot(this_pt_eeg(6001:12000,27))
 
 
-figure(4);clf;
+figure(8);clf;
 final_elec_matrix = [this_pt_coords,this_pt_abn,ones(size(this_pt_res))];
 %final_elec_matrix = final_elec_matrix([2,23,50],:)
 dlmwrite('render_elecs.node',final_elec_matrix,'delimiter',' ','precision',5)
@@ -632,7 +632,7 @@ p6 = ranksum(corrval2(corrval_outcome==1),corrval2(corrval_outcome>1),'tail','ri
 d6 = computeCohen_d(corrval2(corrval_outcome==1),corrval2(corrval_outcome>1))
 
 plot_matrix = padcat(corrval2(corrval_outcome==1)',corrval2(corrval_outcome>1)');
-figure(5);clf;
+figure(9);clf;
 UnivarScatter(plot_matrix);
 xticks([1,2])
 xticklabels({'Engel 1','Engel 2+'})
@@ -653,7 +653,7 @@ end
 
 mean_diff = mean_in-mean_out;
 
-figure(6);clf;
+figure(10);clf;
 hold on
 plot_matrix = padcat(mean_diff(late_outcome==1),mean_diff(late_outcome>1));
 UnivarScatter(plot_matrix);
@@ -685,7 +685,7 @@ good_inds = find(auc_pt_outcome==1);
 poor_inds = find(auc_pt_outcome>1);
 
 plot_matrix = padcat(pt_auc(good_inds),pt_auc(poor_inds));
-figure(7);clf;
+figure(11);clf;
 UnivarScatter(plot_matrix)
 
 ranksum(plot_matrix(:,1),plot_matrix(:,2))
@@ -714,7 +714,7 @@ end
 
 plot_matrix = padcat(pt_uninvolved,pt_eiz,pt_soz);
 
-figure(8);clf;
+figure(12);clf;
 UnivarScatter(plot_matrix)
 xticks([1:3])
 xticklabels({'uninvolved','irritative zone','seizure onset zone'})
@@ -746,7 +746,7 @@ for s = 107:166
 
 end
 
-figure(9);clf;
+figure(13);clf;
 hold on
 plot(length_diagnosis, pt_out_rz,'b.','Color',[106 178 180]/255,'MarkerSize',12)
 p = polyfit(length_diagnosis,pt_out_rz,1);
