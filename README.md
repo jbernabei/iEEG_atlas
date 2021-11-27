@@ -13,9 +13,9 @@ In addition to matlab, users will need BrainNet viewer to generate renderings: h
 
 ## Usage
 
-For most research purposes, using the filtered but otherwise unprocessed data found on Pennsieve Discover may be most useful. 
+For most general research purposes, using the filtered but otherwise unprocessed data found on Pennsieve Discover may be most useful. 
 
-To facilitate the usage of our methods for mapping quantitative abnormalities, please see the demo script for a simple application of the atlas to a 'test' patient
+To illustrate the usage of our methods for mapping quantitative abnormalities, please see the demo script for a simple application of the atlas to a 'test' patient. The end product of this demo is a rendering of predicted abnormalities, similar to those seen in Figure 7 of the paper. 
 
 
 ## Contributing
